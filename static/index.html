@@ -1,0 +1,3263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech Accountant</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e3a5f;--navy-dk:#152d4a;--navy-lt:#2c5282;
+  --gold:#c8963e;--gold-lt:#d4a853;
+  --bg:#f0f4f8;--white:#fff;--text:#1a202c;--muted:#718096;--light:#4a5568;
+  --border:#e2e8f0;--shadow:0 4px 16px rgba(30,58,95,.1);--shadow-sm:0 1px 4px rgba(0,0,0,.06);
+  --radius:14px;--sidebar:260px;--header:62px;
+  --green:#38a169;--red:#e53e3e;--yellow:#d69e2e;--blue:#3182ce;
+}
+body{font-family:'Nunito',-apple-system,sans-serif;background:var(--bg);min-height:100vh;color:var(--text)}
+
+/* ─── AUTH SCREENS ─────────────────────────────────────────────────────────── */
+#auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 60%,#c8963e 100%)}
+.auth-card{background:#fff;border-radius:20px;padding:40px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.auth-logo{text-align:center;margin-bottom:30px}
+.auth-logo .logo-text{font-family:'Fredoka One',cursive;font-size:36px;background:linear-gradient(135deg,#1e3a5f,#c8963e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.auth-logo .logo-sub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.auth-title{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.auth-steps{display:flex;gap:6px;margin-bottom:24px}
+.auth-step{flex:1;height:4px;border-radius:2px;background:var(--border)}
+.auth-step.done{background:var(--gold)}
+.auth-step.active{background:var(--navy)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.field input,.field select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;color:var(--text);background:#fff;transition:border-color .2s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--navy)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;text-decoration:none}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--navy-lt)}
+.btn-gold{background:var(--gold);color:#fff}
+.btn-gold:hover{background:var(--gold-lt)}
+.btn-outline{background:transparent;color:var(--navy);border:1.5px solid var(--navy)}
+.btn-outline:hover{background:var(--navy);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{opacity:.9}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn-xs{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-block{width:100%}
+.auth-link{text-align:center;margin-top:16px;font-size:13px;color:var(--muted)}
+.auth-link a{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:none}
+.auth-link a:hover{color:var(--gold)}
+.error-msg{background:#fff5f5;border:1px solid #fed7d7;color:var(--red);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.success-msg{background:#f0fff4;border:1px solid #c6f6d5;color:var(--green);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px}
+
+/* ─── LAYOUT ────────────────────────────────────────────────────────────────── */
+#app-wrap{display:none}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:var(--navy);z-index:200;display:flex;flex-direction:column;overflow-y:auto;transition:transform .3s}
+.sidebar-logo{padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo-text{font-family:'Fredoka One',cursive;font-size:24px;background:linear-gradient(135deg,#fff,#c8963e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-top:1px}
+.sidebar-company{padding:12px 22px;border-bottom:1px solid rgba(255,255,255,.08)}
+.company-name{font-size:12px;font-weight:700;color:rgba(255,255,255,.9)}
+.company-role{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em}
+.sidebar-section{padding:8px 10px 4px;font-size:9px;font-weight:800;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-top:6px}
+.sidebar-nav{flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:1px}
+.nav-link{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,.65);text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none;background:transparent;width:100%;text-align:left}
+.nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-link.active{background:rgba(200,150,62,.2);color:var(--gold-lt);border-left:3px solid var(--gold)}
+.nav-link svg{width:17px;height:17px;flex-shrink:0;opacity:.8}
+.sidebar-footer{padding:10px;border-top:1px solid rgba(255,255,255,.08)}
+.nav-link.danger{color:rgba(255,100,100,.7)}
+.nav-link.danger:hover{background:rgba(239,68,68,.15);color:#fc8181}
+.header{position:fixed;top:0;left:var(--sidebar);right:0;height:var(--header);background:#fff;border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;transition:left .3s}
+.header-left{display:flex;align-items:center;gap:14px}
+.menu-btn{display:none;width:36px;height:36px;border:none;background:transparent;cursor:pointer;border-radius:8px;font-size:20px;color:var(--text)}
+.page-title{font-size:16px;font-weight:800;color:var(--text)}
+.header-right{display:flex;align-items:center;gap:10px}
+.sync-badge{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.sync-badge.online{background:#f0fff4;color:var(--green)}
+.sync-badge.offline{background:#fff5f5;color:var(--red)}
+.sync-badge.syncing{background:#fffaf0;color:var(--yellow)}
+.sync-dot{width:7px;height:7px;border-radius:50%}
+.sync-badge.online .sync-dot{background:var(--green)}
+.sync-badge.offline .sync-dot{background:var(--red)}
+.sync-badge.syncing .sync-dot{background:var(--yellow);animation:pulse-dot 1s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.25}}
+/* offline banner */
+.offline-banner{display:none;position:fixed;top:var(--header);left:var(--sidebar);right:0;padding:9px 20px;background:#fff3cd;border-bottom:2px solid #ffc107;font-size:12px;font-weight:700;color:#856404;z-index:90;align-items:center;justify-content:space-between;gap:12px}
+.offline-banner.visible{display:flex}
+@media(max-width:768px){.offline-banner{left:0}}
+/* install button */
+.btn-install{background:linear-gradient(135deg,var(--gold),var(--gold-lt));color:#fff}
+.btn-install:hover{opacity:.9}
+/* mobile bottom nav */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:58px;background:#fff;border-top:1px solid var(--border);z-index:200;flex-direction:row;align-items:stretch}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border:none;background:transparent;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;gap:2px;padding:4px 2px;transition:color .2s}
+.bnav-btn svg{width:20px;height:20px}
+.bnav-btn.active{color:var(--navy)}
+.bnav-btn:hover{color:var(--navy)}
+@media(max-width:768px){
+  .bottom-nav{display:flex}
+  .main{padding-bottom:74px}
+}
+.user-chip{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:20px;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;color:var(--text)}
+.avatar{width:30px;height:30px;background:linear-gradient(135deg,var(--navy),var(--navy-lt));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0}
+.main{margin-left:var(--sidebar);margin-top:var(--header);padding:24px;min-height:calc(100vh - var(--header))}
+
+/* ─── VIEWS ─────────────────────────────────────────────────────────────────── */
+.view{display:none}
+.view.active{display:block}
+
+/* ─── CARDS ─────────────────────────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:#fff;border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--gold))}
+.kpi-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.kpi-value{font-size:26px;font-weight:800;color:var(--navy);line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:4px}
+.kpi-icon{position:absolute;right:16px;top:16px;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.kpi-icon.blue{background:#ebf4ff}
+.kpi-icon.green{background:#f0fff4}
+.kpi-icon.red{background:#fff5f5}
+.kpi-icon.gold{background:#fffaf0}
+.kpi-icon.purple{background:#faf5ff}
+.kpi-icon.teal{background:#e6fffa}
+.section-card{background:#fff;border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.section-title{font-size:15px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px}
+.section-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ─── TABLE ─────────────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:11px 14px;background:#f7fafc;font-weight:700;color:var(--light);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#f7fafc}
+.amount{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amount.pos{color:var(--green)}
+.amount.neg{color:var(--red)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.posted{background:#f0fff4;color:var(--green)}
+.badge.void{background:#fff5f5;color:var(--red)}
+.badge.draft{background:#fffaf0;color:var(--yellow)}
+.badge.asset{background:#ebf4ff;color:var(--blue)}
+.badge.liability{background:#fff5f5;color:var(--red)}
+.badge.equity{background:#faf5ff;color:#805ad5}
+.badge.revenue{background:#f0fff4;color:var(--green)}
+.badge.expense{background:#fffaf0;color:var(--yellow)}
+
+/* ─── FILTERS ───────────────────────────────────────────────────────────────── */
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-bar input,.filter-bar select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);background:#fff}
+.filter-bar input:focus,.filter-bar select:focus{outline:none;border-color:var(--navy)}
+.filter-bar input[type=text]{min-width:200px}
+.filter-bar input[type=date]{width:150px}
+
+/* ─── MODAL ─────────────────────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-lg{max-width:840px}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:10;border-radius:20px 20px 0 0}
+.modal-title{font-size:16px;font-weight:800;color:var(--text)}
+.modal-close{width:32px;height:32px;border:none;background:var(--bg);border-radius:8px;cursor:pointer;font-size:18px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* ─── JOURNAL LINES ─────────────────────────────────────────────────────────── */
+.lines-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.lines-table th{padding:8px 10px;background:#f7fafc;font-size:11px;font-weight:700;color:var(--muted);text-align:left;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.lines-table td{padding:6px 6px;vertical-align:middle;border-bottom:1px solid var(--border)}
+.lines-table select,.lines-table input{width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);background:#fff}
+.lines-table select:focus,.lines-table input:focus{outline:none;border-color:var(--navy)}
+.lines-table input[type=number]{text-align:right;max-width:110px}
+.totals-row{display:flex;justify-content:flex-end;gap:24px;padding:8px 0;font-size:13px;font-weight:700}
+.total-item{display:flex;flex-direction:column;align-items:flex-end}
+.total-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.total-value{font-size:16px;color:var(--navy)}
+.total-diff.bad{color:var(--red)}
+.total-diff.good{color:var(--green)}
+
+/* ─── REPORT ────────────────────────────────────────────────────────────────── */
+.report-section{margin-bottom:20px}
+.report-section-title{font-size:13px;font-weight:800;color:var(--navy);padding:8px 14px;background:#f7fafc;border-radius:8px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.report-subtotal{display:flex;justify-content:space-between;padding:8px 14px;font-weight:800;color:var(--text);border-top:2px solid var(--border);margin-top:4px}
+.report-total{display:flex;justify-content:space-between;padding:12px 14px;font-weight:800;color:#fff;background:var(--navy);border-radius:8px;margin-top:8px}
+
+/* ─── PAGINATION ────────────────────────────────────────────────────────────── */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px}
+.page-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:center;transition:all .2s}
+.page-btn:hover{border-color:var(--navy);color:var(--navy)}
+.page-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.page-info{font-size:12px;color:var(--muted);margin:0 8px}
+
+/* ─── EMPTY STATE ───────────────────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-title{font-size:16px;font-weight:700;color:var(--light);margin-bottom:6px}
+.empty-text{font-size:13px}
+
+/* ─── TOAST ─────────────────────────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:700;color:#fff;box-shadow:var(--shadow);animation:slideUp .3s ease;max-width:320px}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+.toast.info{background:var(--navy)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ─── RESPONSIVE ────────────────────────────────────────────────────────────── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .header{left:0}
+  .main{margin-left:0}
+  .menu-btn{display:flex}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .field-row{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}
+  .modal{border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;right:0;max-width:100%;margin:0}
+  .modal-overlay{align-items:flex-end;padding:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH ──────────────────────────────────────────────────────────────────── -->
+<div id="auth-wrap">
+  <!-- LOGIN -->
+  <div class="auth-card" id="login-card">
+    <div class="auth-logo">
+      <div class="logo-text">T-Tech Accountant</div>
+      <div class="logo-sub">Professional Accounting Software</div>
+    </div>
+    <div class="auth-title">Welcome back</div>
+    <div class="auth-sub">Sign in to your account</div>
+    <div id="login-error" class="error-msg" style="display:none"></div>
+    <div class="field"><label>Email Address</label><input type="email" id="login-email" placeholder="admin@company.com" autocomplete="email"></div>
+    <div class="field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()">Sign In</button>
+    <div class="auth-link">First time? <a onclick="showSetup()">Set up your company</a></div>
+  </div>
+
+  <!-- SETUP WIZARD -->
+  <div class="auth-card" id="setup-card" style="display:none">
+    <div class="auth-logo">
+      <div class="logo-text">T-Tech Accountant</div>
+      <div class="logo-sub">Company Setup Wizard</div>
+    </div>
+    <div class="auth-steps">
+      <div class="auth-step active" id="step-dot-1"></div>
+      <div class="auth-step" id="step-dot-2"></div>
+      <div class="auth-step" id="step-dot-3"></div>
+    </div>
+    <div id="setup-step-1">
+      <div class="auth-title">Company Details</div>
+      <div class="auth-sub">Step 1 of 3 — Tell us about your business</div>
+      <div id="setup-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Company Name</label><input type="text" id="s-company" placeholder="Acme Holdings Ltd."></div>
+      <div class="field-row">
+        <div class="field"><label>Currency Code</label><input type="text" id="s-currency" value="USD" maxlength="3"></div>
+        <div class="field"><label>Symbol</label><input type="text" id="s-symbol" value="$" maxlength="3"></div>
+      </div>
+      <div class="field"><label>Country (optional)</label><input type="text" id="s-country" placeholder="Zimbabwe"></div>
+      <button class="btn btn-primary btn-block" onclick="setupStep2()">Continue →</button>
+    </div>
+    <div id="setup-step-2" style="display:none">
+      <div class="auth-title">Admin Account</div>
+      <div class="auth-sub">Step 2 of 3 — Create your administrator login</div>
+      <div id="setup-error2" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Full Name</label><input type="text" id="s-name" placeholder="John Doe"></div>
+      <div class="field"><label>Email Address</label><input type="email" id="s-email" placeholder="admin@company.com"></div>
+      <div class="field"><label>Password (min 8 chars)</label><input type="password" id="s-pass" placeholder="••••••••"></div>
+      <div class="field"><label>Confirm Password</label><input type="password" id="s-pass2" placeholder="••••••••"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="setupStep1Back()">← Back</button>
+        <button class="btn btn-primary" style="flex:1" onclick="doSetup()">Create Account →</button>
+      </div>
+    </div>
+    <div id="setup-step-3" style="display:none">
+      <div class="auth-title">🎉 All set!</div>
+      <div class="auth-sub">Step 3 of 3 — Seed your Chart of Accounts</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">We can populate a standard Chart of Accounts (80+ accounts) for you, or you can start with a blank ledger and add accounts manually.</p>
+      <button class="btn btn-primary btn-block" style="margin-bottom:10px" onclick="doSeedAndLogin()">Load Default Chart of Accounts</button>
+      <button class="btn btn-outline btn-block" onclick="doLoginAfterSetup()">Start with blank ledger</button>
+    </div>
+    <div class="auth-link">Already set up? <a onclick="showLogin()">Sign in</a></div>
+  </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────────────────────────────────── -->
+<div id="app-wrap">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">T-Tech Accountant</div>
+      <div class="logo-sub">Accounting Software</div>
+    </div>
+    <div class="sidebar-company">
+      <div class="company-name" id="sb-company">Company</div>
+      <div class="company-role" id="sb-role">Role</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section">Main</div>
+      <button class="nav-link active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <div class="sidebar-section">Accounting</div>
+      <button class="nav-link" data-view="accounts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        Chart of Accounts
+      </button>
+      <button class="nav-link" data-view="journals">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+        Journal Entries
+      </button>
+      <button class="nav-link" data-view="ledger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h20M2 9h20M2 15h20M2 21h20M6 3v18M18 3v18"/></svg>
+        General Ledger
+      </button>
+      <div class="sidebar-section">Reports</div>
+      <button class="nav-link" data-view="trial-balance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v10l6 6"/></svg>
+        Trial Balance
+      </button>
+      <button class="nav-link" data-view="income-statement">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Income Statement
+      </button>
+      <button class="nav-link" data-view="balance-sheet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Balance Sheet
+      </button>
+      <button class="nav-link" data-view="ar-aging">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        AR Aging
+      </button>
+      <button class="nav-link" data-view="ap-aging">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+        AP Aging
+      </button>
+      <div class="sidebar-section">Receivables (AR)</div>
+      <button class="nav-link" data-view="customers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Customers
+      </button>
+      <button class="nav-link" data-view="invoices">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Invoices
+      </button>
+      <button class="nav-link" data-view="receipts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+        Receipts
+      </button>
+      <div class="sidebar-section">Payables (AP)</div>
+      <button class="nav-link" data-view="suppliers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+        Suppliers
+      </button>
+      <button class="nav-link" data-view="bills">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        Bills
+      </button>
+      <button class="nav-link" data-view="bill-payments">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Bill Payments
+      </button>
+      <div class="sidebar-section">Banking</div>
+      <button class="nav-link" data-view="bank-accounts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Bank Accounts
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="nav-link" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="nav-link danger" onclick="doLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <header class="header">
+    <div class="header-left">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="page-title" id="page-title">Dashboard</div>
+    </div>
+    <div class="header-right">
+      <div class="sync-badge online" id="sync-badge" onclick="processSyncQueue()" style="cursor:pointer" title="Click to sync now">
+        <div class="sync-dot"></div><span id="sync-text">Online</span>
+      </div>
+      <button id="install-btn" style="display:none" class="btn btn-sm btn-install" onclick="installPWA()">⬇ Install App</button>
+      <div class="user-chip">
+        <div class="avatar" id="user-avatar">U</div>
+        <span id="user-name">User</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Offline banner -->
+  <div id="offline-banner" class="offline-banner">
+    <span>📡 You are offline. Viewing cached data. Changes will sync automatically when you reconnect.</span>
+    <span id="offline-pending-count" style="font-weight:800"></span>
+  </div>
+
+  <main class="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="view active" id="view-dashboard">
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon blue">💰</div><div class="kpi-label">Cash Balance</div><div class="kpi-value" id="kpi-cash">—</div><div class="kpi-sub">All cash & bank accounts</div></div>
+        <div class="kpi-card"><div class="kpi-icon green">📈</div><div class="kpi-label">This Month Revenue</div><div class="kpi-value" id="kpi-rev">—</div><div class="kpi-sub" id="kpi-rev-sub">Current month</div></div>
+        <div class="kpi-card"><div class="kpi-icon red">📉</div><div class="kpi-label">This Month Expenses</div><div class="kpi-value" id="kpi-exp">—</div><div class="kpi-sub">Current month</div></div>
+        <div class="kpi-card"><div class="kpi-icon gold">⚖️</div><div class="kpi-label">Net Profit (Month)</div><div class="kpi-value" id="kpi-net">—</div><div class="kpi-sub">Revenue minus expenses</div></div>
+        <div class="kpi-card"><div class="kpi-icon purple">📊</div><div class="kpi-label">YTD Revenue</div><div class="kpi-value" id="kpi-ytd-rev">—</div><div class="kpi-sub">Year to date</div></div>
+        <div class="kpi-card"><div class="kpi-icon teal">📋</div><div class="kpi-label">Journal Entries</div><div class="kpi-value" id="kpi-journals">—</div><div class="kpi-sub" id="kpi-accounts-sub">Accounts: —</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📝 Recent Journal Entries</div>
+          <button class="btn btn-sm btn-outline" onclick="navigate('journals')">View All</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Entry #</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody id="recent-journals-body"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── CHART OF ACCOUNTS ── -->
+    <div class="view" id="view-accounts">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📋 Chart of Accounts</div>
+          <div class="section-actions">
+            <input type="text" placeholder="Search accounts..." oninput="filterAccounts(this.value)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif">
+            <select onchange="filterAccountType(this.value)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif">
+              <option value="">All Types</option>
+              <option value="asset">Asset</option>
+              <option value="liability">Liability</option>
+              <option value="equity">Equity</option>
+              <option value="revenue">Revenue</option>
+              <option value="expense">Expense</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="openAccountModal()">+ New Account</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th>Normal Bal.</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="accounts-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── JOURNAL ENTRIES ── -->
+    <div class="view" id="view-journals">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📓 Journal Entries</div>
+          <button class="btn btn-sm btn-primary" onclick="openJournalModal()">+ New Entry</button>
+        </div>
+        <div class="filter-bar">
+          <input type="text" placeholder="Search..." oninput="journalSearch(this.value)" style="min-width:180px">
+          <input type="date" id="j-from" onchange="loadJournals()">
+          <input type="date" id="j-to" onchange="loadJournals()">
+          <select onchange="journalStatusFilter(this.value)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif">
+            <option value="">All Status</option>
+            <option value="posted">Posted</option>
+            <option value="void">Void</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Entry #</th><th>Date</th><th>Description</th><th>Reference</th><th>Amount</th><th>Status</th><th>By</th><th>Actions</th></tr></thead>
+          <tbody id="journals-body"></tbody>
+        </table></div>
+        <div class="pagination" id="journals-pagination"></div>
+      </div>
+    </div>
+
+    <!-- ── GENERAL LEDGER ── -->
+    <div class="view" id="view-ledger">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📚 General Ledger</div>
+          <button class="btn btn-sm btn-outline" onclick="exportLedger()">Export CSV</button>
+        </div>
+        <div class="filter-bar">
+          <select id="gl-account" onchange="loadLedger()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;min-width:220px">
+            <option value="">All Accounts</option>
+          </select>
+          <input type="date" id="gl-from" onchange="loadLedger()">
+          <input type="date" id="gl-to" onchange="loadLedger()">
+          <button class="btn btn-sm btn-primary" onclick="loadLedger()">Apply</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Entry #</th><th>Account</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+          <tbody id="ledger-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── TRIAL BALANCE ── -->
+    <div class="view" id="view-trial-balance">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⚖️ Trial Balance</div>
+          <div class="section-actions">
+            <input type="date" id="tb-date" onchange="loadTrialBalance()">
+            <button class="btn btn-sm btn-outline" onclick="exportTrialBalance()">Export CSV</button>
+          </div>
+        </div>
+        <div id="tb-balanced-badge" style="margin-bottom:12px;display:none"></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th></tr></thead>
+          <tbody id="tb-body"></tbody>
+          <tfoot><tr style="background:var(--navy);color:#fff;font-weight:800">
+            <td colspan="3" style="padding:10px 14px">TOTALS</td>
+            <td style="padding:10px 14px;text-align:right" id="tb-total-dr">—</td>
+            <td style="padding:10px 14px;text-align:right" id="tb-total-cr">—</td>
+          </tr></tfoot>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── INCOME STATEMENT ── -->
+    <div class="view" id="view-income-statement">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📈 Income Statement (P&amp;L)</div>
+          <div class="section-actions">
+            <input type="date" id="is-from">
+            <input type="date" id="is-to">
+            <button class="btn btn-sm btn-primary" onclick="loadIncomeStatement()">Apply</button>
+            <button class="btn btn-sm btn-outline" onclick="exportIS()">Export CSV</button>
+          </div>
+        </div>
+        <div id="is-content">
+          <div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Select a date range</div><div class="empty-text">Choose dates and click Apply</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BALANCE SHEET ── -->
+    <div class="view" id="view-balance-sheet">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">🏦 Balance Sheet</div>
+          <div class="section-actions">
+            <input type="date" id="bs-date">
+            <button class="btn btn-sm btn-primary" onclick="loadBalanceSheet()">Apply</button>
+            <button class="btn btn-sm btn-outline" onclick="exportBS()">Export CSV</button>
+          </div>
+        </div>
+        <div id="bs-content">
+          <div class="empty-state"><div class="empty-icon">🏦</div><div class="empty-title">Select a date</div><div class="empty-text">Choose a date and click Apply</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="view" id="view-settings">
+      <div class="section-card">
+        <div class="section-header"><div class="section-title">⚙️ Company Settings</div></div>
+        <form id="settings-form" onsubmit="saveSettings(event)">
+          <div class="field-row">
+            <div class="field"><label>Company Name</label><input type="text" id="set-name"></div>
+            <div class="field"><label>Country</label><input type="text" id="set-country"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Currency Code</label><input type="text" id="set-currency" maxlength="3"></div>
+            <div class="field"><label>Currency Symbol</label><input type="text" id="set-symbol" maxlength="3"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Phone</label><input type="text" id="set-phone"></div>
+            <div class="field"><label>Email</label><input type="email" id="set-email"></div>
+          </div>
+          <div class="field"><label>Address</label><input type="text" id="set-address"></div>
+          <div class="field"><label>Tax / VAT Number</label><input type="text" id="set-tax"></div>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+      </div>
+      <div class="section-card" id="users-section" style="display:none">
+        <div class="section-header">
+          <div class="section-title">👥 Users</div>
+          <button class="btn btn-sm btn-primary" onclick="openUserModal()">+ Add User</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody id="users-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── CUSTOMERS ── -->
+    <div class="view" id="view-customers">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">👥 Customers</div>
+          <button class="btn btn-sm btn-primary" onclick="openCustomerModal()">+ New Customer</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Terms</th><th>Outstanding</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="customers-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── INVOICES ── -->
+    <div class="view" id="view-invoices">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">🧾 Invoices</div>
+          <button class="btn btn-sm btn-primary" onclick="openInvoiceModal()">+ New Invoice</button>
+        </div>
+        <div class="filter-bar">
+          <select id="inv-status-filter" onchange="loadInvoices()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif">
+            <option value="">All Status</option>
+            <option value="sent">Sent</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="void">Void</option>
+          </select>
+          <input type="date" id="inv-from" onchange="loadInvoices()">
+          <input type="date" id="inv-to" onchange="loadInvoices()">
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Due Date</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="invoices-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── RECEIPTS ── -->
+    <div class="view" id="view-receipts">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">💳 Receipts (AR Payments)</div>
+          <button class="btn btn-sm btn-primary" onclick="openReceiptModal()">+ Record Receipt</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Receipt #</th><th>Customer</th><th>Invoice #</th><th>Date</th><th>Method</th><th>Amount</th><th>Reference</th></tr></thead>
+          <tbody id="receipts-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── SUPPLIERS ── -->
+    <div class="view" id="view-suppliers">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">🏭 Suppliers</div>
+          <button class="btn btn-sm btn-primary" onclick="openSupplierModal()">+ New Supplier</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Terms</th><th>Outstanding</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="suppliers-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── BILLS ── -->
+    <div class="view" id="view-bills">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📦 Bills (Supplier Invoices)</div>
+          <button class="btn btn-sm btn-primary" onclick="openBillModal()">+ New Bill</button>
+        </div>
+        <div class="filter-bar">
+          <select id="bill-status-filter" onchange="loadBills()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif">
+            <option value="">All Status</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="void">Void</option>
+          </select>
+          <input type="date" id="bill-from" onchange="loadBills()">
+          <input type="date" id="bill-to" onchange="loadBills()">
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Bill #</th><th>Supplier</th><th>Supplier Ref</th><th>Date</th><th>Due</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="bills-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── BILL PAYMENTS ── -->
+    <div class="view" id="view-bill-payments">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">💸 Bill Payments (AP Payments)</div>
+          <button class="btn btn-sm btn-primary" onclick="openBillPaymentModal()">+ Record Payment</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Payment #</th><th>Supplier</th><th>Bill #</th><th>Date</th><th>Method</th><th>Amount</th><th>Reference</th></tr></thead>
+          <tbody id="bill-payments-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── BANK ACCOUNTS ── -->
+    <div class="view" id="view-bank-accounts">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">🏦 Bank Accounts</div>
+          <button class="btn btn-sm btn-primary" onclick="openBankModal()">+ Add Bank Account</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Bank</th><th>Account #</th><th>GL Account</th><th>Currency</th><th>Balance</th></tr></thead>
+          <tbody id="bank-accounts-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── AR AGING ── -->
+    <div class="view" id="view-ar-aging">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⏳ AR Aging Analysis</div>
+          <div class="section-actions">
+            <button class="btn btn-sm btn-primary" onclick="loadARaging()">Refresh</button>
+            <button class="btn btn-sm btn-outline" onclick="exportAging('ar')">Export CSV</button>
+          </div>
+        </div>
+        <div id="ar-aging-content">
+          <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-title">Click Refresh to load</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AP AGING ── -->
+    <div class="view" id="view-ap-aging">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⌛ AP Aging Analysis</div>
+          <div class="section-actions">
+            <button class="btn btn-sm btn-primary" onclick="loadAPaging()">Refresh</button>
+            <button class="btn btn-sm btn-outline" onclick="exportAging('ap')">Export CSV</button>
+          </div>
+        </div>
+        <div id="ap-aging-content">
+          <div class="empty-state"><div class="empty-icon">⌛</div><div class="empty-title">Click Refresh to load</div></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bnav-btn active" data-bnav="dashboard" onclick="navigate('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="bnav-btn" data-bnav="invoices" onclick="navigate('invoices')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>Invoices</span>
+    </button>
+    <button class="bnav-btn" data-bnav="journals" onclick="navigate('journals')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+      <span>Journal</span>
+    </button>
+    <button class="bnav-btn" data-bnav="bills" onclick="navigate('bills')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      <span>Bills</span>
+    </button>
+    <button class="bnav-btn" data-bnav="accounts" onclick="navigate('accounts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <span>Accounts</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ── MODALS ──────────────────────────────────────────────────────────────── -->
+
+<!-- Account Modal -->
+<div class="modal-overlay" id="account-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="account-modal-title">New Account</div>
+      <button class="modal-close" onclick="closeModal('account-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="account-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Account Code *</label><input type="text" id="acc-code" placeholder="e.g. 1010"></div>
+        <div class="field"><label>Account Type *</label>
+          <select id="acc-type" onchange="updateNormalBalance()">
+            <option value="asset">Asset</option>
+            <option value="liability">Liability</option>
+            <option value="equity">Equity</option>
+            <option value="revenue">Revenue</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Account Name *</label><input type="text" id="acc-name" placeholder="e.g. Bank Account - Main"></div>
+      <div class="field-row">
+        <div class="field"><label>Sub Type</label><input type="text" id="acc-subtype" placeholder="e.g. bank, payable..."></div>
+        <div class="field"><label>Normal Balance</label><input type="text" id="acc-nb" readonly style="background:#f7fafc;color:var(--muted)"></div>
+      </div>
+      <div class="field"><label>Parent Account</label>
+        <select id="acc-parent">
+          <option value="">None (top-level)</option>
+        </select>
+      </div>
+      <div class="field"><label>Description</label><input type="text" id="acc-desc" placeholder="Optional description"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('account-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAccount()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Journal Modal -->
+<div class="modal-overlay" id="journal-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Journal Entry</div>
+      <button class="modal-close" onclick="closeModal('journal-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="journal-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Date *</label><input type="date" id="je-date"></div>
+        <div class="field"><label>Reference</label><input type="text" id="je-ref" placeholder="Inv #, Cheque #, etc."></div>
+      </div>
+      <div class="field"><label>Description *</label><input type="text" id="je-desc" placeholder="Describe the transaction"></div>
+      <div class="field">
+        <label>Journal Lines (Debit = Credit)</label>
+        <div class="table-wrap" style="margin-top:8px">
+          <table class="lines-table">
+            <thead><tr><th style="min-width:220px">Account</th><th>Description</th><th style="width:110px">Debit</th><th style="width:110px">Credit</th><th style="width:40px"></th></tr></thead>
+            <tbody id="je-lines"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="addJELine()">+ Add Line</button>
+        <div class="totals-row">
+          <div class="total-item"><div class="total-label">Total Debit</div><div class="total-value" id="je-total-dr">0.00</div></div>
+          <div class="total-item"><div class="total-label">Total Credit</div><div class="total-value" id="je-total-cr">0.00</div></div>
+          <div class="total-item"><div class="total-label">Difference</div><div class="total-value total-diff" id="je-diff">0.00</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('journal-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveJournal()">Post Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Journal Detail Modal -->
+<div class="modal-overlay" id="journal-detail-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="jd-title">Journal Entry</div>
+      <button class="modal-close" onclick="closeModal('journal-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="jd-body"></div>
+    <div class="modal-footer" id="jd-footer"></div>
+  </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add User</div>
+      <button class="modal-close" onclick="closeModal('user-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="user-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Full Name *</label><input type="text" id="u-name"></div>
+      <div class="field"><label>Email *</label><input type="email" id="u-email"></div>
+      <div class="field"><label>Password *</label><input type="password" id="u-pass" minlength="8"></div>
+      <div class="field"><label>Role</label>
+        <select id="u-role">
+          <option value="accountant">Accountant</option>
+          <option value="cashier">Cashier</option>
+          <option value="auditor">Auditor (read-only)</option>
+          <option value="viewer">Viewer (read-only)</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="cust-modal-title">New Customer</div>
+      <button class="modal-close" onclick="closeModal('customer-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="cust-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Customer Name *</label><input type="text" id="cust-name"></div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" id="cust-email"></div>
+        <div class="field"><label>Phone</label><input type="text" id="cust-phone"></div>
+      </div>
+      <div class="field"><label>Address</label><input type="text" id="cust-address"></div>
+      <div class="field-row">
+        <div class="field"><label>Tax / VAT Number</label><input type="text" id="cust-tax"></div>
+        <div class="field"><label>Payment Terms (days)</label><input type="number" id="cust-terms" value="30"></div>
+      </div>
+      <div class="field"><label>Credit Limit</label><input type="number" id="cust-limit" value="0" step="0.01"></div>
+      <div class="field"><label>Notes</label><input type="text" id="cust-notes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('customer-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supplier Modal -->
+<div class="modal-overlay" id="supplier-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="supp-modal-title">New Supplier</div>
+      <button class="modal-close" onclick="closeModal('supplier-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="supp-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Supplier Name *</label><input type="text" id="supp-name"></div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" id="supp-email"></div>
+        <div class="field"><label>Phone</label><input type="text" id="supp-phone"></div>
+      </div>
+      <div class="field"><label>Address</label><input type="text" id="supp-address"></div>
+      <div class="field-row">
+        <div class="field"><label>Tax / VAT Number</label><input type="text" id="supp-tax"></div>
+        <div class="field"><label>Payment Terms (days)</label><input type="number" id="supp-terms" value="30"></div>
+      </div>
+      <div class="field"><label>Notes</label><input type="text" id="supp-notes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('supplier-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSupplier()">Save Supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Modal -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Invoice</div>
+      <button class="modal-close" onclick="closeModal('invoice-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="inv-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Customer *</label>
+          <select id="inv-customer"><option value="">Select customer...</option></select>
+        </div>
+        <div class="field"><label>Invoice Date *</label><input type="date" id="inv-date"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Due Date *</label><input type="date" id="inv-due"></div>
+        <div class="field"><label>Discount</label><input type="number" id="inv-discount" value="0" step="0.01" oninput="updateInvTotals()"></div>
+      </div>
+      <div class="field"><label>Notes</label><input type="text" id="inv-notes" placeholder="Payment terms, bank details..."></div>
+      <div class="field">
+        <label>Line Items</label>
+        <div class="table-wrap" style="margin-top:8px">
+          <table class="lines-table">
+            <thead><tr><th style="min-width:180px">Description</th><th style="min-width:160px">Revenue Account</th><th style="width:70px">Qty</th><th style="width:100px">Unit Price</th><th style="width:70px">Tax %</th><th style="width:90px">Total</th><th style="width:36px"></th></tr></thead>
+            <tbody id="inv-lines"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="addInvLine()">+ Add Line</button>
+        <div class="totals-row" style="margin-top:10px">
+          <div class="total-item"><div class="total-label">Subtotal</div><div class="total-value" id="inv-subtotal">0.00</div></div>
+          <div class="total-item"><div class="total-label">Tax</div><div class="total-value" id="inv-tax">0.00</div></div>
+          <div class="total-item"><div class="total-label">Discount</div><div class="total-value" id="inv-disc-show">0.00</div></div>
+          <div class="total-item"><div class="total-label">TOTAL</div><div class="total-value" style="font-size:20px;color:var(--navy)" id="inv-total">0.00</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('invoice-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvoice()">Create &amp; Post Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Detail Modal -->
+<div class="modal-overlay" id="invoice-detail-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="invd-title">Invoice</div>
+      <button class="modal-close" onclick="closeModal('invoice-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="invd-body"></div>
+    <div class="modal-footer" id="invd-footer"></div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal-overlay" id="receipt-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Receipt (Customer Payment)</div>
+      <button class="modal-close" onclick="closeModal('receipt-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="rcpt-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Customer *</label>
+        <select id="rcpt-customer" onchange="loadCustomerInvoices()"><option value="">Select customer...</option></select>
+      </div>
+      <div class="field"><label>Invoice (optional)</label>
+        <select id="rcpt-invoice"><option value="">Unallocated / General payment</option></select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Date *</label><input type="date" id="rcpt-date"></div>
+        <div class="field"><label>Amount *</label><input type="number" id="rcpt-amount" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Payment Method</label>
+          <select id="rcpt-method">
+            <option value="cash">Cash</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cheque">Cheque</option>
+            <option value="card">Card</option>
+          </select>
+        </div>
+        <div class="field"><label>Bank Account</label>
+          <select id="rcpt-bank"><option value="">Default (Cash on Hand)</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Reference</label><input type="text" id="rcpt-ref" placeholder="Cheque #, transfer ref..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('receipt-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReceipt()">Record Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bill Modal -->
+<div class="modal-overlay" id="bill-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Bill (Supplier Invoice)</div>
+      <button class="modal-close" onclick="closeModal('bill-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bill-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Supplier *</label>
+          <select id="bill-supplier"><option value="">Select supplier...</option></select>
+        </div>
+        <div class="field"><label>Supplier Ref #</label><input type="text" id="bill-sref" placeholder="Supplier's invoice number"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Bill Date *</label><input type="date" id="bill-date"></div>
+        <div class="field"><label>Due Date *</label><input type="date" id="bill-due"></div>
+      </div>
+      <div class="field"><label>Notes</label><input type="text" id="bill-notes"></div>
+      <div class="field">
+        <label>Line Items</label>
+        <div class="table-wrap" style="margin-top:8px">
+          <table class="lines-table">
+            <thead><tr><th style="min-width:180px">Description</th><th style="min-width:160px">Expense Account</th><th style="width:70px">Qty</th><th style="width:100px">Unit Price</th><th style="width:70px">Tax %</th><th style="width:90px">Total</th><th style="width:36px"></th></tr></thead>
+            <tbody id="bill-lines"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="addBillLine()">+ Add Line</button>
+        <div class="totals-row" style="margin-top:10px">
+          <div class="total-item"><div class="total-label">Subtotal</div><div class="total-value" id="bill-subtotal">0.00</div></div>
+          <div class="total-item"><div class="total-label">Tax</div><div class="total-value" id="bill-tax">0.00</div></div>
+          <div class="total-item"><div class="total-label">TOTAL</div><div class="total-value" style="font-size:20px;color:var(--navy)" id="bill-total">0.00</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bill-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBill()">Create &amp; Post Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bill Detail Modal -->
+<div class="modal-overlay" id="bill-detail-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="billd-title">Bill</div>
+      <button class="modal-close" onclick="closeModal('bill-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="billd-body"></div>
+    <div class="modal-footer" id="billd-footer"></div>
+  </div>
+</div>
+
+<!-- Bill Payment Modal -->
+<div class="modal-overlay" id="bill-payment-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Bill Payment</div>
+      <button class="modal-close" onclick="closeModal('bill-payment-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bpay-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Supplier *</label>
+        <select id="bpay-supplier" onchange="loadSupplierBills()"><option value="">Select supplier...</option></select>
+      </div>
+      <div class="field"><label>Bill (optional)</label>
+        <select id="bpay-bill"><option value="">Unallocated / General payment</option></select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Date *</label><input type="date" id="bpay-date"></div>
+        <div class="field"><label>Amount *</label><input type="number" id="bpay-amount" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Payment Method</label>
+          <select id="bpay-method">
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cash">Cash</option>
+            <option value="cheque">Cheque</option>
+          </select>
+        </div>
+        <div class="field"><label>Bank Account</label>
+          <select id="bpay-bank"><option value="">Default (Main Bank)</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Reference</label><input type="text" id="bpay-ref" placeholder="Cheque #, transfer ref..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bill-payment-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBillPayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bank Account Modal -->
+<div class="modal-overlay" id="bank-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Bank Account</div>
+      <button class="modal-close" onclick="closeModal('bank-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bank-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Account Name *</label><input type="text" id="bank-name" placeholder="e.g. FBC Current Account"></div>
+      <div class="field-row">
+        <div class="field"><label>Bank Name</label><input type="text" id="bank-bankname" placeholder="FBC Bank"></div>
+        <div class="field"><label>Account Number</label><input type="text" id="bank-accnum"></div>
+      </div>
+      <div class="field"><label>GL Account (Chart of Accounts) *</label>
+        <select id="bank-glacc"><option value="">Select account...</option></select>
+      </div>
+      <div class="field"><label>Currency</label><input type="text" id="bank-currency" value="USD" maxlength="3"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bank-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBankAccount()">Add Account</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE & CONFIG
+// ═══════════════════════════════════════════════════════════════════════════════
+const API = '';  // same-origin
+const S = {
+  token: localStorage.getItem('tt_token'),
+  refreshToken: localStorage.getItem('tt_refresh'),
+  user: JSON.parse(localStorage.getItem('tt_user') || 'null'),
+  company: JSON.parse(localStorage.getItem('tt_company') || 'null'),
+  currentView: 'dashboard',
+  accounts: [],
+  accountsFilter: { text: '', type: '' },
+  journals: { items: [], total: 0, page: 1, search: '', status: '', dateFrom: '', dateTo: '' },
+  editingAccountId: null,
+  symbol: '$',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// API HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function api(method, path, body = null) {
+  const isWrite = method !== 'GET';
+
+  // ── Offline path ──────────────────────────────────────────────────────────
+  if (!navigator.onLine) {
+    if (isWrite) {
+      // Queue write for later and return optimistic stub
+      try {
+        if (typeof offlineDB !== 'undefined' && offlineDB.db) {
+          await offlineDB.addToQueue({ method, path, body, desc: `${method} ${path.split('?')[0]}` });
+          const q = await offlineDB.getQueue();
+          syncState.pending = q.length;
+          if (typeof updateSyncBadge === 'function') updateSyncBadge();
+        }
+      } catch {}
+      if (typeof toast === 'function') toast('You are offline — action queued for sync', 'info', 2800);
+      return { queued: true, offline: true };
+    }
+    // Read — serve from IndexedDB cache
+    try {
+      if (typeof offlineDB !== 'undefined' && offlineDB.db) {
+        const cached = await _getFromCache(path);
+        if (cached !== null) return cached;
+      }
+    } catch {}
+    throw new Error('You are offline and no cached data is available');
+  }
+
+  // ── Online path ───────────────────────────────────────────────────────────
+  const headers = { 'Content-Type': 'application/json' };
+  if (S.token) headers['Authorization'] = `Bearer ${S.token}`;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+
+  try {
+    const res = await fetch(`${API}${path}`, opts);
+    if (res.status === 401 && S.refreshToken) {
+      const ok = await tryRefresh();
+      if (ok) return api(method, path, body);
+      doLogout(); return null;
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    // Cache GET list responses for offline use
+    if (!isWrite && Array.isArray(data)) {
+      try {
+        if (typeof offlineDB !== 'undefined' && offlineDB.db) _cacheResponse(path, data);
+      } catch {}
+    }
+    return data;
+  } catch (e) {
+    // Network failure — serve from IndexedDB cache for reads
+    if (!isWrite) {
+      try {
+        if (typeof offlineDB !== 'undefined' && offlineDB.db) {
+          const cached = await _getFromCache(path);
+          if (cached && cached.length > 0) {
+            if (typeof toast === 'function') toast('Serving cached data (network error)', 'info', 2000);
+            return cached;
+          }
+        }
+      } catch {}
+    }
+    throw e;
+  }
+}
+
+async function tryRefresh() {
+  try {
+    const res = await fetch(`${API}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: S.refreshToken })
+    });
+    if (!res.ok) return false;
+    const d = await res.json();
+    S.token = d.access_token;
+    localStorage.setItem('tt_token', d.access_token);
+    return true;
+  } catch { return false; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════════════════════
+function toast(msg, type = 'success', ms = 3500) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FORMATTING
+// ═══════════════════════════════════════════════════════════════════════════════
+function fmt(n, sym = S.symbol) {
+  if (n == null || n === '') return '—';
+  const v = parseFloat(n);
+  return `${sym}${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function fmtSigned(n, sym = S.symbol) {
+  const v = parseFloat(n);
+  const s = v >= 0 ? '' : '-';
+  return `${s}${sym}${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function dateStr(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'; }
+function today() { return new Date().toISOString().split('T')[0]; }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════════════
+function showLogin() {
+  document.getElementById('setup-card').style.display = 'none';
+  document.getElementById('login-card').style.display = 'block';
+}
+function showSetup() {
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('setup-card').style.display = 'block';
+  setupStep1Back();
+}
+function setupStep2() {
+  const co = document.getElementById('s-company').value.trim();
+  if (!co) { showErr('setup-error', 'Company name is required'); return; }
+  showErr('setup-error', '');
+  document.getElementById('setup-step-1').style.display = 'none';
+  document.getElementById('setup-step-2').style.display = 'block';
+  document.getElementById('step-dot-1').className = 'auth-step done';
+  document.getElementById('step-dot-2').className = 'auth-step active';
+}
+function setupStep1Back() {
+  document.getElementById('setup-step-1').style.display = 'block';
+  document.getElementById('setup-step-2').style.display = 'none';
+  document.getElementById('setup-step-3').style.display = 'none';
+  document.getElementById('step-dot-1').className = 'auth-step active';
+  document.getElementById('step-dot-2').className = 'auth-step';
+  document.getElementById('step-dot-3').className = 'auth-step';
+}
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+let _setupCreds = {};
+
+async function doSetup() {
+  const name = document.getElementById('s-name').value.trim();
+  const email = document.getElementById('s-email').value.trim();
+  const pass = document.getElementById('s-pass').value;
+  const pass2 = document.getElementById('s-pass2').value;
+  if (!name || !email || !pass) { showErr('setup-error2', 'All fields are required'); return; }
+  if (pass !== pass2) { showErr('setup-error2', 'Passwords do not match'); return; }
+  if (pass.length < 8) { showErr('setup-error2', 'Password must be at least 8 characters'); return; }
+  showErr('setup-error2', '');
+  try {
+    await api('POST', '/api/auth/setup', {
+      company_name: document.getElementById('s-company').value.trim(),
+      currency: document.getElementById('s-currency').value.trim() || 'USD',
+      currency_symbol: document.getElementById('s-symbol').value.trim() || '$',
+      country: document.getElementById('s-country').value.trim() || null,
+      admin_name: name, admin_email: email, admin_password: pass
+    });
+    _setupCreds = { email, password: pass };
+    document.getElementById('setup-step-2').style.display = 'none';
+    document.getElementById('setup-step-3').style.display = 'block';
+    document.getElementById('step-dot-2').className = 'auth-step done';
+    document.getElementById('step-dot-3').className = 'auth-step active';
+  } catch (e) { showErr('setup-error2', e.message); }
+}
+
+async function doSeedAndLogin() {
+  await _loginAndSeed(true);
+}
+async function doLoginAfterSetup() {
+  await _loginAndSeed(false);
+}
+async function _loginAndSeed(seed) {
+  try {
+    const d = await api('POST', '/api/auth/login', _setupCreds);
+    storeAuth(d);
+    if (seed) {
+      try { await api('POST', '/api/accounts/seed'); toast('Default chart of accounts loaded'); }
+      catch(e) { toast('Could not seed accounts: ' + e.message, 'error'); }
+    }
+    launchApp();
+  } catch(e) { toast('Login failed: ' + e.message, 'error'); }
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  showErr('login-error', '');
+  if (!email || !pass) { showErr('login-error', 'Email and password required'); return; }
+  try {
+    const d = await api('POST', '/api/auth/login', { email, password: pass });
+    storeAuth(d);
+    launchApp();
+  } catch(e) { showErr('login-error', e.message); }
+}
+
+function storeAuth(d) {
+  S.token = d.access_token;
+  S.refreshToken = d.refresh_token;
+  S.user = d.user;
+  localStorage.setItem('tt_token', d.access_token);
+  localStorage.setItem('tt_refresh', d.refresh_token);
+  localStorage.setItem('tt_user', JSON.stringify(d.user));
+}
+
+function doLogout() {
+  localStorage.removeItem('tt_token');
+  localStorage.removeItem('tt_refresh');
+  localStorage.removeItem('tt_user');
+  localStorage.removeItem('tt_company');
+  S.token = S.user = S.company = null;
+  document.getElementById('app-wrap').style.display = 'none';
+  document.getElementById('auth-wrap').style.display = 'flex';
+  showLogin();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP LAUNCH
+// ═══════════════════════════════════════════════════════════════════════════════
+async function launchApp() {
+  document.getElementById('auth-wrap').style.display = 'none';
+  document.getElementById('app-wrap').style.display = 'block';
+  try {
+    const me = await api('GET', '/api/auth/me');
+    if (me) {
+      S.user = me.user;
+      S.company = me.company;
+      localStorage.setItem('tt_user', JSON.stringify(me.user));
+      localStorage.setItem('tt_company', JSON.stringify(me.company));
+    }
+  } catch(e) {}
+  updateHeader();
+  await loadAccounts();
+  navigate('dashboard');
+}
+
+function updateHeader() {
+  const u = S.user || {};
+  const c = S.company || {};
+  S.symbol = c.currency_symbol || u.currency_symbol || '$';
+  document.getElementById('sb-company').textContent = c.name || u.company_name || 'Company';
+  document.getElementById('sb-role').textContent = u.role || 'accountant';
+  document.getElementById('user-name').textContent = (u.full_name || 'User').split(' ')[0];
+  document.getElementById('user-avatar').textContent = (u.full_name || 'U')[0].toUpperCase();
+  if (u.role === 'admin') {
+    document.getElementById('users-section').style.display = 'block';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════════
+const VIEW_TITLES = {
+  dashboard: 'Dashboard', accounts: 'Chart of Accounts',
+  journals: 'Journal Entries', ledger: 'General Ledger',
+  'trial-balance': 'Trial Balance', 'income-statement': 'Income Statement',
+  'balance-sheet': 'Balance Sheet', settings: 'Settings',
+  customers: 'Customers', invoices: 'Invoices', receipts: 'Receipts',
+  suppliers: 'Suppliers', bills: 'Bills', 'bill-payments': 'Bill Payments',
+  'bank-accounts': 'Bank Accounts', 'ar-aging': 'AR Aging Analysis', 'ap-aging': 'AP Aging Analysis',
+};
+
+function navigate(view) {
+  S.currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+  const el = document.getElementById(`view-${view}`);
+  if (el) el.classList.add('active');
+  document.querySelectorAll(`[data-view="${view}"]`).forEach(a => a.classList.add('active'));
+  document.getElementById('page-title').textContent = VIEW_TITLES[view] || view;
+  // Mobile bottom nav active state
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.toggle('active', b.dataset.bnav === view));
+  closeSidebar();
+  // Phase 1
+  if (view === 'dashboard')      loadDashboard();
+  if (view === 'journals')       loadJournals();
+  if (view === 'ledger')         { populateLedgerAccountFilter(); loadLedger(); }
+  if (view === 'trial-balance')  loadTrialBalance();
+  if (view === 'settings')       loadSettings();
+  // Phase 2
+  if (view === 'customers')      loadCustomers();
+  if (view === 'invoices')       loadInvoices();
+  if (view === 'receipts')       loadReceipts();
+  if (view === 'suppliers')      loadSuppliers();
+  if (view === 'bills')          loadBills();
+  if (view === 'bill-payments')  loadBillPayments();
+  if (view === 'bank-accounts')  loadBankAccounts();
+  if (view === 'ar-aging')       loadARaging();
+  if (view === 'ap-aging')       loadAPaging();
+}
+
+document.querySelectorAll('.nav-link[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => navigate(btn.dataset.view));
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ONLINE / OFFLINE
+// ═══════════════════════════════════════════════════════════════════════════════
+function updateOnlineStatus() {
+  const badge = document.getElementById('sync-badge');
+  const text = document.getElementById('sync-text');
+  if (navigator.onLine) {
+    badge.className = 'sync-badge online'; text.textContent = 'Online';
+  } else {
+    badge.className = 'sync-badge offline'; text.textContent = 'Offline';
+  }
+}
+window.addEventListener('online',  () => { updateSyncBadge(); processSyncQueue(); });
+window.addEventListener('offline', () => { updateSyncBadge(); });
+updateOnlineStatus();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const d = await api('GET', '/api/dashboard');
+    if (!d) return;
+    const sym = S.symbol;
+    document.getElementById('kpi-cash').textContent = fmt(d.cash_balance, sym);
+    document.getElementById('kpi-rev').textContent = fmt(d.month_revenue, sym);
+    document.getElementById('kpi-exp').textContent = fmt(d.month_expenses, sym);
+    document.getElementById('kpi-net').textContent = fmtSigned(d.month_net, sym);
+    document.getElementById('kpi-net').style.color = d.month_net >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('kpi-ytd-rev').textContent = fmt(d.ytd_revenue, sym);
+    document.getElementById('kpi-journals').textContent = d.total_journals.toLocaleString();
+    document.getElementById('kpi-accounts-sub').textContent = `Accounts: ${d.total_accounts}`;
+    const tbody = document.getElementById('recent-journals-body');
+    tbody.innerHTML = (d.recent_journals || []).length === 0
+      ? '<tr><td colspan="5" class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No entries yet</div></td></tr>'
+      : d.recent_journals.map(j => `
+        <tr>
+          <td><strong>${j.entry_number}</strong></td>
+          <td>${dateStr(j.date)}</td>
+          <td>${esc(j.description)}</td>
+          <td class="amount">${fmt(j.amount, sym)}</td>
+          <td><span class="badge ${j.status}">${j.status}</span></td>
+        </tr>`).join('');
+  } catch(e) { toast('Dashboard load failed: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHART OF ACCOUNTS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadAccounts() {
+  try {
+    const d = await api('GET', '/api/accounts');
+    S.accounts = d || [];
+    renderAccounts();
+    populateAccountDropdowns();
+  } catch(e) { toast('Failed to load accounts', 'error'); }
+}
+
+function renderAccounts() {
+  const { text, type } = S.accountsFilter;
+  let rows = S.accounts;
+  if (text) rows = rows.filter(a => a.name.toLowerCase().includes(text.toLowerCase()) || a.code.includes(text));
+  if (type) rows = rows.filter(a => a.type === type);
+  const sym = S.symbol;
+  const tbody = document.getElementById('accounts-body');
+  tbody.innerHTML = rows.length === 0
+    ? `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No accounts found</div></div></td></tr>`
+    : rows.map(a => {
+      const isAdmin = (S.user||{}).role === 'admin';
+      const canEdit = isAdmin;
+      return `<tr>
+        <td><code style="font-size:12px;background:#f7fafc;padding:2px 6px;border-radius:4px">${esc(a.code)}</code></td>
+        <td>${a.parent_id ? '&nbsp;&nbsp;&nbsp;&nbsp;' : ''}${esc(a.name)}</td>
+        <td><span class="badge ${a.type}">${a.type}</span></td>
+        <td style="text-transform:capitalize">${a.normal_balance}</td>
+        <td class="amount ${a.balance >= 0 ? 'pos' : 'neg'}">${fmt(a.balance, sym)}</td>
+        <td><span class="badge ${a.is_active ? 'posted' : 'void'}">${a.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td style="white-space:nowrap">
+          ${canEdit ? `<button class="btn btn-xs btn-outline" onclick="editAccount(${a.id})">Edit</button> ` : ''}
+          ${canEdit && !a.is_system ? `<button class="btn btn-xs btn-danger" onclick="deleteAccount(${a.id}, '${esc(a.name)}')">Del</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+}
+
+function filterAccounts(text) { S.accountsFilter.text = text; renderAccounts(); }
+function filterAccountType(type) { S.accountsFilter.type = type; renderAccounts(); }
+
+function populateAccountDropdowns() {
+  // Account modal parent dropdown
+  const parentSel = document.getElementById('acc-parent');
+  if (parentSel) {
+    const prev = parentSel.value;
+    parentSel.innerHTML = '<option value="">None (top-level)</option>' +
+      S.accounts.map(a => `<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+    if (prev) parentSel.value = prev;
+  }
+  // GL filter
+  populateLedgerAccountFilter();
+  // Journal entry account selects
+  document.querySelectorAll('.je-account-sel').forEach(sel => populateAccountSelect(sel));
+}
+
+function populateLedgerAccountFilter() {
+  const sel = document.getElementById('gl-account');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All Accounts</option>' +
+    S.accounts.map(a => `<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+}
+
+function openAccountModal(id = null) {
+  S.editingAccountId = id;
+  document.getElementById('account-modal-title').textContent = id ? 'Edit Account' : 'New Account';
+  showErr('account-modal-error', '');
+  if (!id) {
+    document.getElementById('acc-code').value = '';
+    document.getElementById('acc-name').value = '';
+    document.getElementById('acc-type').value = 'asset';
+    document.getElementById('acc-subtype').value = '';
+    document.getElementById('acc-desc').value = '';
+    document.getElementById('acc-parent').value = '';
+    updateNormalBalance();
+  }
+  openModal('account-modal');
+}
+
+function editAccount(id) {
+  const a = S.accounts.find(x => x.id === id);
+  if (!a) return;
+  S.editingAccountId = id;
+  document.getElementById('account-modal-title').textContent = 'Edit Account';
+  document.getElementById('acc-code').value = a.code;
+  document.getElementById('acc-name').value = a.name;
+  document.getElementById('acc-type').value = a.type;
+  document.getElementById('acc-subtype').value = a.sub_type || '';
+  document.getElementById('acc-desc').value = a.description || '';
+  document.getElementById('acc-parent').value = a.parent_id || '';
+  document.getElementById('acc-nb').value = a.normal_balance;
+  showErr('account-modal-error', '');
+  openModal('account-modal');
+}
+
+function updateNormalBalance() {
+  const type = document.getElementById('acc-type').value;
+  const nb = { asset: 'Debit', expense: 'Debit', liability: 'Credit', equity: 'Credit', revenue: 'Credit' };
+  document.getElementById('acc-nb').value = nb[type] || '';
+}
+
+async function saveAccount() {
+  const code = document.getElementById('acc-code').value.trim();
+  const name = document.getElementById('acc-name').value.trim();
+  const type = document.getElementById('acc-type').value;
+  const sub_type = document.getElementById('acc-subtype').value.trim() || null;
+  const parent_id = parseInt(document.getElementById('acc-parent').value) || null;
+  const description = document.getElementById('acc-desc').value.trim() || null;
+  if (!code || !name) { showErr('account-modal-error', 'Code and Name are required'); return; }
+  try {
+    if (S.editingAccountId) {
+      await api('PUT', `/api/accounts/${S.editingAccountId}`, { name, description });
+    } else {
+      await api('POST', '/api/accounts', { code, name, type, sub_type, parent_id, description });
+    }
+    toast(S.editingAccountId ? 'Account updated' : 'Account created');
+    closeModal('account-modal');
+    await loadAccounts();
+  } catch(e) { showErr('account-modal-error', e.message); }
+}
+
+async function deleteAccount(id, name) {
+  if (!confirm(`Delete account "${name}"?\nThis cannot be undone.`)) return;
+  try {
+    await api('DELETE', `/api/accounts/${id}`);
+    toast('Account deleted');
+    await loadAccounts();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOURNAL ENTRIES
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadJournals() {
+  const j = S.journals;
+  const params = new URLSearchParams({ page: j.page, per_page: 20 });
+  if (j.search) params.set('search', j.search);
+  if (j.status) params.set('status', j.status);
+  if (j.dateFrom) params.set('date_from', j.dateFrom);
+  if (j.dateTo) params.set('date_to', j.dateTo);
+  try {
+    const d = await api('GET', `/api/journals?${params}`);
+    if (!d) return;
+    S.journals.items = d.items;
+    S.journals.total = d.total;
+    renderJournals(d);
+  } catch(e) { toast('Failed to load journals', 'error'); }
+}
+
+let _searchTimer;
+function journalSearch(v) { clearTimeout(_searchTimer); _searchTimer = setTimeout(() => { S.journals.search = v; S.journals.page = 1; loadJournals(); }, 400); }
+function journalStatusFilter(v) { S.journals.status = v; S.journals.page = 1; loadJournals(); }
+
+document.getElementById('j-from')?.addEventListener('change', e => { S.journals.dateFrom = e.target.value; S.journals.page = 1; loadJournals(); });
+document.getElementById('j-to')?.addEventListener('change', e => { S.journals.dateTo = e.target.value; S.journals.page = 1; loadJournals(); });
+
+function renderJournals(d) {
+  const sym = S.symbol;
+  const tbody = document.getElementById('journals-body');
+  tbody.innerHTML = d.items.length === 0
+    ? `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📓</div><div class="empty-title">No journal entries</div><div class="empty-text">Click "+ New Entry" to create one</div></div></td></tr>`
+    : d.items.map(j => `<tr>
+        <td><button class="btn btn-xs btn-outline" onclick="viewJournal(${j.id})">${j.entry_number}</button></td>
+        <td>${dateStr(j.date)}</td>
+        <td>${esc(j.description)}</td>
+        <td style="color:var(--muted)">${esc(j.reference||'')}</td>
+        <td class="amount">${fmt(j.total_amount, sym)}</td>
+        <td><span class="badge ${j.status}">${j.status}</span></td>
+        <td style="color:var(--muted);font-size:12px">${esc(j.created_by_name||'')}</td>
+        <td>
+          <button class="btn btn-xs btn-outline" onclick="viewJournal(${j.id})">View</button>
+          ${j.status === 'posted' && ['admin','accountant'].includes((S.user||{}).role||'')
+            ? `<button class="btn btn-xs btn-danger" style="margin-left:4px" onclick="voidJournal(${j.id})">Void</button>` : ''}
+        </td>
+      </tr>`).join('');
+
+  // Pagination
+  const pg = document.getElementById('journals-pagination');
+  const pages = d.pages || 1;
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  let html = `<span class="page-info">Page ${d.page} of ${pages} (${d.total} total)</span>`;
+  if (d.page > 1) html += `<button class="page-btn" onclick="journalPage(${d.page-1})">‹</button>`;
+  const start = Math.max(1, d.page - 2), end = Math.min(pages, d.page + 2);
+  for (let i = start; i <= end; i++) html += `<button class="page-btn${i===d.page?' active':''}" onclick="journalPage(${i})">${i}</button>`;
+  if (d.page < pages) html += `<button class="page-btn" onclick="journalPage(${d.page+1})">›</button>`;
+  pg.innerHTML = html;
+}
+function journalPage(p) { S.journals.page = p; loadJournals(); }
+
+// Journal modal
+function openJournalModal() {
+  document.getElementById('je-date').value = today();
+  document.getElementById('je-ref').value = '';
+  document.getElementById('je-desc').value = '';
+  document.getElementById('je-lines').innerHTML = '';
+  showErr('journal-modal-error', '');
+  addJELine(); addJELine();
+  updateJETotals();
+  openModal('journal-modal');
+}
+
+function addJELine() {
+  const opts = S.accounts.map(a => `<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><select class="je-account-sel">${opts}</select></td>
+    <td><input type="text" placeholder="Line description"></td>
+    <td><input type="number" min="0" step="0.01" placeholder="0.00" oninput="updateJETotals()"></td>
+    <td><input type="number" min="0" step="0.01" placeholder="0.00" oninput="updateJETotals()"></td>
+    <td><button onclick="this.closest('tr').remove();updateJETotals()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px">✕</button></td>`;
+  document.getElementById('je-lines').appendChild(tr);
+}
+
+function updateJETotals() {
+  let dr = 0, cr = 0;
+  document.querySelectorAll('#je-lines tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input[type=number]');
+    dr += parseFloat(inputs[0]?.value || 0);
+    cr += parseFloat(inputs[1]?.value || 0);
+  });
+  document.getElementById('je-total-dr').textContent = dr.toFixed(2);
+  document.getElementById('je-total-cr').textContent = cr.toFixed(2);
+  const diff = Math.abs(dr - cr);
+  const diffEl = document.getElementById('je-diff');
+  diffEl.textContent = diff.toFixed(2);
+  diffEl.className = `total-value total-diff ${diff < 0.005 ? 'good' : 'bad'}`;
+}
+
+async function saveJournal() {
+  const date = document.getElementById('je-date').value;
+  const description = document.getElementById('je-desc').value.trim();
+  const reference = document.getElementById('je-ref').value.trim() || null;
+  if (!date || !description) { showErr('journal-modal-error', 'Date and description are required'); return; }
+  const lines = [];
+  document.querySelectorAll('#je-lines tr').forEach(tr => {
+    const sel = tr.querySelector('select');
+    const inputs = tr.querySelectorAll('input');
+    const debit = parseFloat(inputs[1]?.value || 0);
+    const credit = parseFloat(inputs[2]?.value || 0);
+    if ((debit > 0 || credit > 0) && sel?.value) {
+      lines.push({ account_id: parseInt(sel.value), description: inputs[0]?.value || null, debit, credit });
+    }
+  });
+  if (lines.length < 2) { showErr('journal-modal-error', 'At least 2 lines with amounts required'); return; }
+  try {
+    const res = await api('POST', '/api/journals', { date, description, reference, lines });
+    if (!res) return;
+    toast(`Posted ${res.entry_number}`);
+    closeModal('journal-modal');
+    loadJournals();
+    loadDashboard();
+  } catch(e) { showErr('journal-modal-error', e.message); }
+}
+
+async function viewJournal(id) {
+  try {
+    const j = await api('GET', `/api/journals/${id}`);
+    if (!j) return;
+    const sym = S.symbol;
+    document.getElementById('jd-title').textContent = `${j.entry_number} — ${dateStr(j.date)}`;
+    document.getElementById('jd-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Description</div><div style="font-weight:700">${esc(j.description)}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Reference</div><div>${esc(j.reference||'—')}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Posted by</div><div>${esc(j.created_by_name||'—')}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Status</div><span class="badge ${j.status}">${j.status}</span></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Account</th><th>Description</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th></tr></thead>
+        <tbody>${(j.lines||[]).map(l => `<tr>
+          <td><code style="font-size:12px;background:#f7fafc;padding:2px 6px;border-radius:4px">${l.account_code}</code> ${esc(l.account_name)}</td>
+          <td style="color:var(--muted)">${esc(l.description||'')}</td>
+          <td style="text-align:right" class="amount">${l.debit > 0 ? fmt(l.debit,sym) : ''}</td>
+          <td style="text-align:right" class="amount">${l.credit > 0 ? fmt(l.credit,sym) : ''}</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr style="background:#f7fafc;font-weight:800">
+          <td colspan="2" style="padding:10px 14px">TOTAL</td>
+          <td style="text-align:right;padding:10px 14px">${fmt((j.lines||[]).reduce((s,l)=>s+l.debit,0),sym)}</td>
+          <td style="text-align:right;padding:10px 14px">${fmt((j.lines||[]).reduce((s,l)=>s+l.credit,0),sym)}</td>
+        </tr></tfoot>
+      </table></div>`;
+    const footer = document.getElementById('jd-footer');
+    footer.innerHTML = `<button class="btn btn-outline" onclick="closeModal('journal-detail-modal')">Close</button>`;
+    if (j.status === 'posted' && ['admin','accountant'].includes((S.user||{}).role||'')) {
+      footer.innerHTML += `<button class="btn btn-danger" onclick="voidJournal(${id});closeModal('journal-detail-modal')">Void Entry</button>`;
+    }
+    openModal('journal-detail-modal');
+  } catch(e) { toast('Failed to load journal: ' + e.message, 'error'); }
+}
+
+async function voidJournal(id) {
+  if (!confirm('Void this journal entry? This cannot be undone.')) return;
+  try {
+    await api('POST', `/api/journals/${id}/void`);
+    toast('Entry voided');
+    loadJournals();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GENERAL LEDGER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadLedger() {
+  const accId = document.getElementById('gl-account')?.value;
+  const from = document.getElementById('gl-from')?.value;
+  const to = document.getElementById('gl-to')?.value;
+  const params = new URLSearchParams();
+  if (accId) params.set('account_id', accId);
+  if (from) params.set('date_from', from);
+  if (to) params.set('date_to', to);
+  try {
+    const rows = await api('GET', `/api/ledger?${params}`);
+    if (!rows) return;
+    const sym = S.symbol;
+    const tbody = document.getElementById('ledger-body');
+    tbody.innerHTML = rows.length === 0
+      ? `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">No transactions found</div></div></td></tr>`
+      : rows.map(r => `<tr>
+          <td>${dateStr(r.date)}</td>
+          <td style="font-size:12px">${esc(r.entry_number)}</td>
+          <td><code style="font-size:11px;background:#f7fafc;padding:1px 5px;border-radius:3px">${r.account_code}</code> ${esc(r.account_name)}</td>
+          <td style="color:var(--muted);font-size:12px">${esc(r.line_desc||r.entry_desc||'')}</td>
+          <td class="amount" style="text-align:right">${r.debit > 0 ? fmt(r.debit,sym) : ''}</td>
+          <td class="amount" style="text-align:right">${r.credit > 0 ? fmt(r.credit,sym) : ''}</td>
+          <td class="amount ${r.running_balance >= 0 ? 'pos' : 'neg'}" style="text-align:right">${fmtSigned(r.running_balance,sym)}</td>
+        </tr>`).join('');
+  } catch(e) { toast('Failed to load ledger', 'error'); }
+}
+
+function exportLedger() {
+  const tbody = document.getElementById('ledger-body');
+  const rows = [['Date','Entry#','Account','Description','Debit','Credit','Balance']];
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
+    if (cells.length > 1) rows.push(cells);
+  });
+  downloadCSV('general_ledger.csv', rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRIAL BALANCE
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadTrialBalance() {
+  const date = document.getElementById('tb-date')?.value;
+  const params = date ? `?date_to=${date}` : '';
+  try {
+    const d = await api('GET', `/api/reports/trial-balance${params}`);
+    if (!d) return;
+    const sym = S.symbol;
+    const badge = document.getElementById('tb-balanced-badge');
+    badge.style.display = 'block';
+    badge.innerHTML = d.balanced
+      ? `<span class="badge posted" style="font-size:13px;padding:6px 14px">✔ Trial Balance is Balanced</span>`
+      : `<span class="badge void" style="font-size:13px;padding:6px 14px">✘ Trial Balance is NOT Balanced (difference: ${fmt(Math.abs(d.total_debit - d.total_credit), sym)})</span>`;
+    const tbody = document.getElementById('tb-body');
+    tbody.innerHTML = d.items.length === 0
+      ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚖️</div><div class="empty-title">No posted transactions</div></div></td></tr>`
+      : d.items.map(r => `<tr>
+          <td><code style="font-size:12px;background:#f7fafc;padding:2px 6px;border-radius:4px">${r.code}</code></td>
+          <td>${esc(r.name)}</td>
+          <td><span class="badge ${r.type}">${r.type}</span></td>
+          <td style="text-align:right" class="amount">${r.balance_debit > 0 ? fmt(r.balance_debit,sym) : ''}</td>
+          <td style="text-align:right" class="amount">${r.balance_credit > 0 ? fmt(r.balance_credit,sym) : ''}</td>
+        </tr>`).join('');
+    document.getElementById('tb-total-dr').textContent = fmt(d.total_debit, sym);
+    document.getElementById('tb-total-cr').textContent = fmt(d.total_credit, sym);
+  } catch(e) { toast('Failed to load trial balance', 'error'); }
+}
+
+function exportTrialBalance() {
+  const rows = [['Code','Account Name','Type','Debit','Credit']];
+  document.querySelectorAll('#tb-body tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
+    if (cells.length > 1) rows.push(cells);
+  });
+  downloadCSV('trial_balance.csv', rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INCOME STATEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadIncomeStatement() {
+  const from = document.getElementById('is-from')?.value;
+  const to = document.getElementById('is-to')?.value;
+  const params = new URLSearchParams();
+  if (from) params.set('date_from', from);
+  if (to) params.set('date_to', to);
+  try {
+    const d = await api('GET', `/api/reports/income-statement?${params}`);
+    if (!d) return;
+    const sym = S.symbol;
+    const profitColor = d.net_profit >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('is-content').innerHTML = `
+      <div class="report-section">
+        <div class="report-section-title">Revenue</div>
+        ${d.revenue.map(r => `<div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:13px"><span>${esc(r.name)}</span><span class="amount pos">${fmt(r.amount,sym)}</span></div>`).join('') || '<div style="padding:6px 14px;color:var(--muted);font-size:13px">No revenue recorded</div>'}
+        <div class="report-subtotal"><span>Total Revenue</span><span class="amount pos">${fmt(d.total_revenue,sym)}</span></div>
+      </div>
+      <div class="report-section">
+        <div class="report-section-title">Expenses</div>
+        ${d.expenses.map(r => `<div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:13px"><span>${esc(r.name)}</span><span class="amount neg">(${fmt(r.amount,sym)})</span></div>`).join('') || '<div style="padding:6px 14px;color:var(--muted);font-size:13px">No expenses recorded</div>'}
+        <div class="report-subtotal"><span>Total Expenses</span><span class="amount neg">(${fmt(d.total_expenses,sym)})</span></div>
+      </div>
+      <div class="report-total"><span>Net ${d.net_profit >= 0 ? 'Profit' : 'Loss'}</span><span style="color:${profitColor === 'var(--green)' ? '#9ae6b4' : '#fc8181'}">${fmtSigned(d.net_profit,sym)}</span></div>`;
+  } catch(e) { toast('Failed to load income statement', 'error'); }
+}
+
+function exportIS() {
+  const rows = [['Account','Amount']];
+  document.querySelectorAll('#is-content [style*="display:flex"]').forEach(row => {
+    const cells = [...row.querySelectorAll('span')].map(s => s.textContent.trim());
+    if (cells.length === 2) rows.push(cells);
+  });
+  downloadCSV('income_statement.csv', rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BALANCE SHEET
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadBalanceSheet() {
+  const date = document.getElementById('bs-date')?.value;
+  const params = date ? `?date_to=${date}` : '';
+  try {
+    const d = await api('GET', `/api/reports/balance-sheet${params}`);
+    if (!d) return;
+    const sym = S.symbol;
+    function section(title, items, total) {
+      return `<div class="report-section">
+        <div class="report-section-title">${title}</div>
+        ${items.map(r => `<div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:13px"><span>${r.parent_id ? '&nbsp;&nbsp;&nbsp;&nbsp;' : ''}${esc(r.name)}</span><span class="amount">${fmt(r.balance,sym)}</span></div>`).join('') || '<div style="padding:6px 14px;color:var(--muted);font-size:13px">None</div>'}
+        <div class="report-subtotal"><span>Total ${title}</span><span class="amount">${fmt(total,sym)}</span></div>
+      </div>`;
+    }
+    const totalLE = d.total_liabilities + d.total_equity;
+    const balanced = Math.abs(d.total_assets - totalLE) < 0.01;
+    document.getElementById('bs-content').innerHTML = `
+      ${section('Assets', d.assets, d.total_assets)}
+      ${section('Liabilities', d.liabilities, d.total_liabilities)}
+      ${section('Equity', d.equity, d.total_equity)}
+      <div class="report-total" style="background:${balanced?'var(--navy)':'var(--red)'}">
+        <span>Total Assets vs Total Liabilities + Equity</span>
+        <span>${fmt(d.total_assets,sym)} vs ${fmt(totalLE,sym)} ${balanced ? '✔' : '✘'}</span>
+      </div>`;
+  } catch(e) { toast('Failed to load balance sheet', 'error'); }
+}
+
+function exportBS() {
+  const rows = [['Section','Account','Balance']];
+  document.querySelectorAll('#bs-content .report-section').forEach(sec => {
+    const title = sec.querySelector('.report-section-title')?.textContent.trim();
+    sec.querySelectorAll('[style*="display:flex"]').forEach(row => {
+      const cells = [...row.querySelectorAll('span')].map(s => s.textContent.trim());
+      if (cells.length === 2) rows.push([title, ...cells]);
+    });
+  });
+  downloadCSV('balance_sheet.csv', rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadSettings() {
+  try {
+    const me = await api('GET', '/api/auth/me');
+    if (!me) return;
+    const c = me.company || {};
+    document.getElementById('set-name').value = c.name || '';
+    document.getElementById('set-country').value = c.country || '';
+    document.getElementById('set-currency').value = c.currency || 'USD';
+    document.getElementById('set-symbol').value = c.currency_symbol || '$';
+    document.getElementById('set-phone').value = c.phone || '';
+    document.getElementById('set-email').value = c.email || '';
+    document.getElementById('set-address').value = c.address || '';
+    document.getElementById('set-tax').value = c.tax_number || '';
+    if ((S.user||{}).role === 'admin') loadUsers();
+  } catch(e) {}
+}
+
+async function saveSettings(e) {
+  e.preventDefault();
+  try {
+    await api('PUT', '/api/company', {
+      name: document.getElementById('set-name').value,
+      country: document.getElementById('set-country').value,
+      currency: document.getElementById('set-currency').value,
+      currency_symbol: document.getElementById('set-symbol').value,
+      phone: document.getElementById('set-phone').value,
+      email: document.getElementById('set-email').value,
+      address: document.getElementById('set-address').value,
+      tax_number: document.getElementById('set-tax').value,
+    });
+    S.symbol = document.getElementById('set-symbol').value || '$';
+    toast('Settings saved');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function loadUsers() {
+  try {
+    const users = await api('GET', '/api/users');
+    if (!users) return;
+    document.getElementById('users-body').innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${esc(u.full_name)}</strong></td>
+        <td>${esc(u.email)}</td>
+        <td style="text-transform:capitalize">${u.role}</td>
+        <td><span class="badge ${u.is_active ? 'posted' : 'void'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+function openUserModal() {
+  document.getElementById('u-name').value = '';
+  document.getElementById('u-email').value = '';
+  document.getElementById('u-pass').value = '';
+  document.getElementById('u-role').value = 'accountant';
+  showErr('user-modal-error', '');
+  openModal('user-modal');
+}
+
+async function saveUser() {
+  const name = document.getElementById('u-name').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const pass = document.getElementById('u-pass').value;
+  const role = document.getElementById('u-role').value;
+  if (!name || !email || !pass) { showErr('user-modal-error', 'All fields required'); return; }
+  try {
+    await api('POST', '/api/users', { full_name: name, email, password: pass, role });
+    toast('User created');
+    closeModal('user-modal');
+    loadUsers();
+  } catch(e) { showErr('user-modal-error', e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadCSV(filename, rows) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 2 STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+const P2 = { customers: [], suppliers: [], bankAccounts: [], editingCustomerId: null, editingSupplierAId: null };
+
+// (Phase 2 view routing and title map are now consolidated in the main navigate() above)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOMERS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadCustomers() {
+  try {
+    const d = await api('GET', '/api/customers');
+    P2.customers = d || [];
+    const sym = S.symbol;
+    document.getElementById('customers-body').innerHTML = P2.customers.length === 0
+      ? `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No customers yet</div></div></td></tr>`
+      : P2.customers.map(c => `<tr>
+          <td><strong>${esc(c.name)}</strong></td>
+          <td>${esc(c.email||'')}</td>
+          <td>${esc(c.phone||'')}</td>
+          <td>${c.payment_terms} days</td>
+          <td class="amount ${c.outstanding>0?'neg':''}">${fmt(c.outstanding,sym)}</td>
+          <td><span class="badge ${c.is_active?'posted':'void'}">${c.is_active?'Active':'Inactive'}</span></td>
+          <td><button class="btn btn-xs btn-outline" onclick="editCustomer(${c.id})">Edit</button>
+              <button class="btn btn-xs btn-primary" style="margin-left:4px" onclick="quickInvoice(${c.id})">Invoice</button></td>
+        </tr>`).join('');
+    populateCustDropdowns();
+  } catch(e) { toast('Failed to load customers','error'); }
+}
+
+function populateCustDropdowns() {
+  const opts = '<option value="">Select customer...</option>' + P2.customers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  ['inv-customer','rcpt-customer'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = opts; });
+}
+
+function openCustomerModal(id=null) {
+  P2.editingCustomerId = id;
+  document.getElementById('cust-modal-title').textContent = id ? 'Edit Customer' : 'New Customer';
+  showErr('cust-error','');
+  if (!id) {
+    ['cust-name','cust-email','cust-phone','cust-address','cust-tax','cust-notes'].forEach(x => document.getElementById(x).value = '');
+    document.getElementById('cust-terms').value = 30;
+    document.getElementById('cust-limit').value = 0;
+  }
+  openModal('customer-modal');
+}
+
+function editCustomer(id) {
+  const c = P2.customers.find(x=>x.id===id); if(!c) return;
+  P2.editingCustomerId = id;
+  document.getElementById('cust-modal-title').textContent = 'Edit Customer';
+  document.getElementById('cust-name').value = c.name||'';
+  document.getElementById('cust-email').value = c.email||'';
+  document.getElementById('cust-phone').value = c.phone||'';
+  document.getElementById('cust-address').value = c.address||'';
+  document.getElementById('cust-tax').value = c.tax_number||'';
+  document.getElementById('cust-terms').value = c.payment_terms||30;
+  document.getElementById('cust-limit').value = c.credit_limit||0;
+  document.getElementById('cust-notes').value = c.notes||'';
+  showErr('cust-error','');
+  openModal('customer-modal');
+}
+
+async function saveCustomer() {
+  const name = document.getElementById('cust-name').value.trim();
+  if (!name) { showErr('cust-error','Name is required'); return; }
+  const body = {
+    name, email: document.getElementById('cust-email').value||null,
+    phone: document.getElementById('cust-phone').value||null,
+    address: document.getElementById('cust-address').value||null,
+    tax_number: document.getElementById('cust-tax').value||null,
+    payment_terms: parseInt(document.getElementById('cust-terms').value)||30,
+    credit_limit: parseFloat(document.getElementById('cust-limit').value)||0,
+    notes: document.getElementById('cust-notes').value||null,
+  };
+  try {
+    if (P2.editingCustomerId) await api('PUT',`/api/customers/${P2.editingCustomerId}`,body);
+    else await api('POST','/api/customers',body);
+    toast(P2.editingCustomerId?'Customer updated':'Customer created');
+    closeModal('customer-modal'); loadCustomers();
+  } catch(e) { showErr('cust-error',e.message); }
+}
+
+function quickInvoice(customerId) {
+  openInvoiceModal();
+  setTimeout(()=>{ const el=document.getElementById('inv-customer'); if(el) el.value=customerId; }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVOICES
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadInvoices() {
+  const status = document.getElementById('inv-status-filter')?.value||'';
+  const from   = document.getElementById('inv-from')?.value||'';
+  const to     = document.getElementById('inv-to')?.value||'';
+  const params = new URLSearchParams();
+  if(status) params.set('status',status);
+  if(from)   params.set('date_from',from);
+  if(to)     params.set('date_to',to);
+  try {
+    const d = await api('GET',`/api/invoices?${params}`);
+    const sym = S.symbol;
+    document.getElementById('invoices-body').innerHTML = !d||d.length===0
+      ? `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices</div><div class="empty-text">Click "+ New Invoice" to create one</div></div></td></tr>`
+      : d.map(i=>`<tr>
+          <td><button class="btn btn-xs btn-outline" onclick="viewInvoice(${i.id})">${i.invoice_number}</button></td>
+          <td>${esc(i.customer_name)}</td>
+          <td>${dateStr(i.date)}</td>
+          <td>${dateStr(i.due_date)}</td>
+          <td class="amount">${fmt(i.total,sym)}</td>
+          <td class="amount pos">${fmt(i.amount_paid,sym)}</td>
+          <td class="amount ${i.balance_due>0.005?'neg':''}">${fmt(i.balance_due,sym)}</td>
+          <td><span class="badge ${invStatusClass(i.status)}">${i.status}</span></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-xs btn-outline" onclick="viewInvoice(${i.id})">View</button>
+            ${i.status==='sent'||i.status==='partial'?`<button class="btn btn-xs btn-primary" style="margin-left:4px" onclick="quickReceipt(${i.customer_id},${i.id})">Pay</button>`:''}
+          </td>
+        </tr>`).join('');
+  } catch(e) { toast('Failed to load invoices','error'); }
+}
+
+function invStatusClass(s){
+  return {sent:'posted',partial:'draft',paid:'posted',void:'void',draft:'draft'}[s]||'draft';
+}
+
+function openInvoiceModal() {
+  if(P2.customers.length===0){ toast('Add a customer first','info'); navigate('customers'); return; }
+  document.getElementById('inv-date').value = today();
+  const due = new Date(); due.setDate(due.getDate()+30);
+  document.getElementById('inv-due').value = due.toISOString().split('T')[0];
+  document.getElementById('inv-discount').value = 0;
+  document.getElementById('inv-notes').value = '';
+  document.getElementById('inv-lines').innerHTML = '';
+  showErr('inv-error','');
+  populateCustDropdowns();
+  addInvLine(); addInvLine();
+  updateInvTotals();
+  openModal('invoice-modal');
+}
+
+function revenueAccOpts() {
+  return S.accounts.filter(a=>a.type==='revenue').map(a=>`<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+}
+function expenseAccOpts() {
+  return S.accounts.filter(a=>a.type==='expense').map(a=>`<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+}
+
+function addInvLine() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" placeholder="Description" oninput="updateInvTotals()"></td>
+    <td><select><option value="">—</option>${revenueAccOpts()}</select></td>
+    <td><input type="number" value="1" min="0.001" step="any" oninput="updateInvTotals()" style="max-width:60px;text-align:right"></td>
+    <td><input type="number" value="0" min="0" step="0.01" oninput="updateInvTotals()" style="max-width:100px;text-align:right"></td>
+    <td><input type="number" value="0" min="0" max="100" step="0.01" oninput="updateInvTotals()" style="max-width:60px;text-align:right"></td>
+    <td class="amount" id="il-total-${Date.now()}">0.00</td>
+    <td><button onclick="this.closest('tr').remove();updateInvTotals()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px">✕</button></td>`;
+  document.getElementById('inv-lines').appendChild(tr);
+}
+
+function updateInvTotals() {
+  let sub=0, tax=0;
+  document.querySelectorAll('#inv-lines tr').forEach(tr=>{
+    const ins = tr.querySelectorAll('input[type=number]');
+    const qty = parseFloat(ins[0]?.value||0);
+    const up  = parseFloat(ins[1]?.value||0);
+    const tr_ = parseFloat(ins[2]?.value||0);
+    const net = qty*up;
+    const t   = net*tr_/100;
+    sub+=net; tax+=t;
+    const td = tr.querySelector('td:nth-child(6)');
+    if(td) td.textContent = (net+t).toFixed(2);
+  });
+  const disc = parseFloat(document.getElementById('inv-discount')?.value||0);
+  document.getElementById('inv-subtotal').textContent = sub.toFixed(2);
+  document.getElementById('inv-tax').textContent = tax.toFixed(2);
+  document.getElementById('inv-disc-show').textContent = disc.toFixed(2);
+  document.getElementById('inv-total').textContent = (sub+tax-disc).toFixed(2);
+}
+
+async function saveInvoice() {
+  const customer_id = parseInt(document.getElementById('inv-customer').value);
+  const date        = document.getElementById('inv-date').value;
+  const due_date    = document.getElementById('inv-due').value;
+  const discount    = parseFloat(document.getElementById('inv-discount').value)||0;
+  const notes       = document.getElementById('inv-notes').value||null;
+  if(!customer_id||!date||!due_date){ showErr('inv-error','Customer, date and due date are required'); return; }
+  const lines = [];
+  document.querySelectorAll('#inv-lines tr').forEach(tr=>{
+    const ins  = tr.querySelectorAll('input[type=number]');
+    const desc = tr.querySelector('input[type=text]')?.value?.trim();
+    const sel  = tr.querySelector('select');
+    const qty  = parseFloat(ins[0]?.value||0);
+    const up   = parseFloat(ins[1]?.value||0);
+    const tr_  = parseFloat(ins[2]?.value||0);
+    if(desc && (qty*up)>0) lines.push({description:desc,account_id:parseInt(sel?.value)||null,quantity:qty,unit_price:up,tax_rate:tr_});
+  });
+  if(lines.length===0){ showErr('inv-error','Add at least one line item'); return; }
+  try {
+    const r = await api('POST','/api/invoices',{customer_id,date,due_date,discount,notes,lines});
+    if(!r) return;
+    toast(`Invoice ${r.invoice_number} created — ${S.symbol}${r.total.toFixed(2)}`);
+    closeModal('invoice-modal'); loadInvoices(); loadDashboard();
+  } catch(e){ showErr('inv-error',e.message); }
+}
+
+async function viewInvoice(id) {
+  try {
+    const inv = await api('GET',`/api/invoices/${id}`); if(!inv) return;
+    const sym = S.symbol;
+    document.getElementById('invd-title').textContent = `${inv.invoice_number} — ${inv.customer_name}`;
+    document.getElementById('invd-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Customer</div><div style="font-weight:700">${esc(inv.customer_name)}</div><div style="font-size:12px;color:var(--muted)">${esc(inv.customer_email||'')}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Invoice Details</div>
+          <div style="font-size:13px">Date: <strong>${dateStr(inv.date)}</strong></div>
+          <div style="font-size:13px">Due: <strong>${dateStr(inv.due_date)}</strong></div>
+          <div style="font-size:13px">Status: <span class="badge ${invStatusClass(inv.status)}">${inv.status}</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:16px"><table>
+        <thead><tr><th>Description</th><th>Account</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>${(inv.lines||[]).map(l=>`<tr>
+          <td>${esc(l.description)}</td>
+          <td style="font-size:12px;color:var(--muted)">${l.account_code?`${l.account_code} ${l.account_name}`:''}</td>
+          <td style="text-align:right">${l.quantity}</td>
+          <td style="text-align:right">${fmt(l.unit_price,sym)}</td>
+          <td style="text-align:right">${l.tax_rate>0?l.tax_rate+'%':''}</td>
+          <td style="text-align:right" class="amount">${fmt(l.line_total,sym)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div style="display:flex;justify-content:flex-end;gap:24px;margin-bottom:16px">
+        <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Subtotal</div><div class="amount">${fmt(inv.subtotal,sym)}</div></div>
+        ${inv.tax_amount>0?`<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Tax</div><div class="amount">${fmt(inv.tax_amount,sym)}</div></div>`:''}
+        ${inv.discount>0?`<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Discount</div><div class="amount neg">(${fmt(inv.discount,sym)})</div></div>`:''}
+        <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">TOTAL</div><div class="amount" style="font-size:18px;color:var(--navy)">${fmt(inv.total,sym)}</div></div>
+        <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Balance Due</div><div class="amount ${inv.balance_due>0.005?'neg':''}" style="font-size:18px">${fmt(inv.balance_due,sym)}</div></div>
+      </div>
+      ${inv.payments&&inv.payments.length>0?`<div style="font-size:13px;font-weight:700;margin-bottom:8px">Payment History</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Receipt #</th><th>Date</th><th>Method</th><th>Amount</th></tr></thead>
+        <tbody>${inv.payments.map(p=>`<tr><td>${p.receipt_number}</td><td>${dateStr(p.date)}</td><td>${p.payment_method}</td><td class="amount pos">${fmt(p.amount,sym)}</td></tr>`).join('')}</tbody>
+      </table></div>`:''}`;
+    const footer = document.getElementById('invd-footer');
+    footer.innerHTML = `<button class="btn btn-outline" onclick="closeModal('invoice-detail-modal')">Close</button>`;
+    if((inv.status==='sent'||inv.status==='partial')&&['admin','accountant','cashier'].includes((S.user||{}).role||'')){
+      footer.innerHTML += `<button class="btn btn-primary" onclick="closeModal('invoice-detail-modal');quickReceipt(${inv.customer_id},${inv.id})">Record Payment</button>`;
+    }
+    if(inv.status==='sent'&&['admin','accountant'].includes((S.user||{}).role||'')){
+      footer.innerHTML += `<button class="btn btn-danger" style="margin-left:8px" onclick="voidInvoice(${id});closeModal('invoice-detail-modal')">Void</button>`;
+    }
+    footer.innerHTML += `<button class="btn btn-outline" style="margin-left:8px" onclick="printInvoice(${id})">🖨 Print</button>`;
+    openModal('invoice-detail-modal');
+  } catch(e){ toast('Failed to load invoice','error'); }
+}
+
+async function voidInvoice(id){
+  if(!confirm('Void this invoice?')) return;
+  try{ await api('POST',`/api/invoices/${id}/void`); toast('Invoice voided'); loadInvoices(); }
+  catch(e){ toast(e.message,'error'); }
+}
+
+function quickReceipt(customerId, invoiceId) {
+  openReceiptModal();
+  setTimeout(()=>{
+    if(customerId){ document.getElementById('rcpt-customer').value=customerId; loadCustomerInvoices(); }
+    if(invoiceId) setTimeout(()=>{ document.getElementById('rcpt-invoice').value=invoiceId; }, 100);
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RECEIPTS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadReceipts() {
+  try {
+    const d = await api('GET','/api/receipts');
+    const sym = S.symbol;
+    document.getElementById('receipts-body').innerHTML = !d||d.length===0
+      ? `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">No receipts</div></div></td></tr>`
+      : d.map(r=>`<tr>
+          <td><strong>${r.receipt_number}</strong></td>
+          <td>${esc(r.customer_name)}</td>
+          <td style="font-size:12px;color:var(--muted)">${r.invoice_number||'—'}</td>
+          <td>${dateStr(r.date)}</td>
+          <td style="text-transform:capitalize">${r.payment_method}</td>
+          <td class="amount pos">${fmt(r.amount,sym)}</td>
+          <td style="color:var(--muted)">${esc(r.reference||'')}</td>
+        </tr>`).join('');
+  } catch(e){ toast('Failed to load receipts','error'); }
+}
+
+function openReceiptModal() {
+  populateCustDropdowns();
+  populateBankDropdowns('rcpt-bank');
+  document.getElementById('rcpt-date').value = today();
+  document.getElementById('rcpt-amount').value = '';
+  document.getElementById('rcpt-ref').value = '';
+  document.getElementById('rcpt-invoice').innerHTML = '<option value="">Unallocated / General payment</option>';
+  showErr('rcpt-error','');
+  openModal('receipt-modal');
+}
+
+async function loadCustomerInvoices() {
+  const cid = document.getElementById('rcpt-customer')?.value;
+  const sel = document.getElementById('rcpt-invoice');
+  sel.innerHTML = '<option value="">Unallocated / General payment</option>';
+  if(!cid) return;
+  try {
+    const d = await api('GET',`/api/invoices?customer_id=${cid}&status=sent`) || [];
+    const d2= await api('GET',`/api/invoices?customer_id=${cid}&status=partial`) || [];
+    const sym = S.symbol;
+    [...d,...d2].forEach(i=>{
+      const opt = document.createElement('option');
+      opt.value = i.id;
+      opt.textContent = `${i.invoice_number} — Due: ${fmt(i.balance_due,sym)} (${dateStr(i.due_date)})`;
+      sel.appendChild(opt);
+    });
+  } catch(e){}
+}
+
+async function saveReceipt() {
+  const customer_id    = parseInt(document.getElementById('rcpt-customer').value);
+  const invoice_id     = parseInt(document.getElementById('rcpt-invoice').value)||null;
+  const date           = document.getElementById('rcpt-date').value;
+  const amount         = parseFloat(document.getElementById('rcpt-amount').value);
+  const payment_method = document.getElementById('rcpt-method').value;
+  const reference      = document.getElementById('rcpt-ref').value||null;
+  const bank_account_id= parseInt(document.getElementById('rcpt-bank').value)||null;
+  if(!customer_id||!date||!amount){ showErr('rcpt-error','Customer, date and amount are required'); return; }
+  try {
+    const r = await api('POST','/api/receipts',{customer_id,invoice_id,date,amount,payment_method,reference,bank_account_id});
+    if(!r) return;
+    toast(`Receipt ${r.receipt_number} recorded`);
+    closeModal('receipt-modal'); loadReceipts(); loadInvoices(); loadDashboard();
+  } catch(e){ showErr('rcpt-error',e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIERS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadSuppliers() {
+  try {
+    const d = await api('GET','/api/suppliers');
+    P2.suppliers = d||[];
+    const sym = S.symbol;
+    document.getElementById('suppliers-body').innerHTML = P2.suppliers.length===0
+      ? `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">No suppliers yet</div></div></td></tr>`
+      : P2.suppliers.map(s=>`<tr>
+          <td><strong>${esc(s.name)}</strong></td>
+          <td>${esc(s.email||'')}</td>
+          <td>${esc(s.phone||'')}</td>
+          <td>${s.payment_terms} days</td>
+          <td class="amount ${s.outstanding>0?'neg':''}">${fmt(s.outstanding,sym)}</td>
+          <td><span class="badge ${s.is_active?'posted':'void'}">${s.is_active?'Active':'Inactive'}</span></td>
+          <td><button class="btn btn-xs btn-outline" onclick="editSupplier(${s.id})">Edit</button>
+              <button class="btn btn-xs btn-primary" style="margin-left:4px" onclick="quickBill(${s.id})">Bill</button></td>
+        </tr>`).join('');
+    populateSuppDropdowns();
+  } catch(e){ toast('Failed to load suppliers','error'); }
+}
+
+function populateSuppDropdowns() {
+  const opts = '<option value="">Select supplier...</option>' + P2.suppliers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  ['bill-supplier','bpay-supplier'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=opts; });
+}
+
+function openSupplierModal(id=null) {
+  P2.editingSupplierAId = id;
+  document.getElementById('supp-modal-title').textContent = id?'Edit Supplier':'New Supplier';
+  showErr('supp-error','');
+  if(!id) ['supp-name','supp-email','supp-phone','supp-address','supp-tax','supp-notes'].forEach(x=>document.getElementById(x).value='');
+  openModal('supplier-modal');
+}
+
+function editSupplier(id){
+  const s=P2.suppliers.find(x=>x.id===id); if(!s) return;
+  P2.editingSupplierAId=id;
+  document.getElementById('supp-modal-title').textContent='Edit Supplier';
+  document.getElementById('supp-name').value=s.name||'';
+  document.getElementById('supp-email').value=s.email||'';
+  document.getElementById('supp-phone').value=s.phone||'';
+  document.getElementById('supp-address').value=s.address||'';
+  document.getElementById('supp-tax').value=s.tax_number||'';
+  document.getElementById('supp-terms').value=s.payment_terms||30;
+  document.getElementById('supp-notes').value=s.notes||'';
+  showErr('supp-error','');
+  openModal('supplier-modal');
+}
+
+async function saveSupplier(){
+  const name=document.getElementById('supp-name').value.trim();
+  if(!name){ showErr('supp-error','Name is required'); return; }
+  const body={name,email:document.getElementById('supp-email').value||null,phone:document.getElementById('supp-phone').value||null,
+    address:document.getElementById('supp-address').value||null,tax_number:document.getElementById('supp-tax').value||null,
+    payment_terms:parseInt(document.getElementById('supp-terms').value)||30,notes:document.getElementById('supp-notes').value||null};
+  try {
+    if(P2.editingSupplierAId) await api('PUT',`/api/suppliers/${P2.editingSupplierAId}`,body);
+    else await api('POST','/api/suppliers',body);
+    toast(P2.editingSupplierAId?'Supplier updated':'Supplier created');
+    closeModal('supplier-modal'); loadSuppliers();
+  } catch(e){ showErr('supp-error',e.message); }
+}
+
+function quickBill(supplierId){
+  openBillModal();
+  setTimeout(()=>{ const el=document.getElementById('bill-supplier'); if(el) el.value=supplierId; },50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BILLS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadBills(){
+  const status=document.getElementById('bill-status-filter')?.value||'';
+  const params=new URLSearchParams();
+  if(status) params.set('status',status);
+  try{
+    const d=await api('GET',`/api/bills?${params}`);
+    const sym=S.symbol;
+    document.getElementById('bills-body').innerHTML=!d||d.length===0
+      ?`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">No bills</div></div></td></tr>`
+      :d.map(b=>`<tr>
+          <td><button class="btn btn-xs btn-outline" onclick="viewBill(${b.id})">${b.bill_number}</button></td>
+          <td>${esc(b.supplier_name)}</td>
+          <td style="color:var(--muted);font-size:12px">${esc(b.supplier_ref||'')}</td>
+          <td>${dateStr(b.date)}</td>
+          <td>${dateStr(b.due_date)}</td>
+          <td class="amount">${fmt(b.total,sym)}</td>
+          <td class="amount pos">${fmt(b.amount_paid,sym)}</td>
+          <td class="amount ${b.balance_due>0.005?'neg':''}">${fmt(b.balance_due,sym)}</td>
+          <td><span class="badge ${b.status==='paid'?'posted':b.status==='void'?'void':'draft'}">${b.status}</span></td>
+          <td>${b.status==='unpaid'||b.status==='partial'?`<button class="btn btn-xs btn-primary" onclick="quickBillPay(${b.supplier_id},${b.id})">Pay</button>`:''}
+              <button class="btn btn-xs btn-outline" style="margin-left:2px" onclick="viewBill(${b.id})">View</button></td>
+        </tr>`).join('');
+  }catch(e){ toast('Failed to load bills','error'); }
+}
+
+function openBillModal(){
+  if(P2.suppliers.length===0){ toast('Add a supplier first','info'); navigate('suppliers'); return; }
+  document.getElementById('bill-date').value=today();
+  const due=new Date(); due.setDate(due.getDate()+30);
+  document.getElementById('bill-due').value=due.toISOString().split('T')[0];
+  document.getElementById('bill-sref').value='';
+  document.getElementById('bill-notes').value='';
+  document.getElementById('bill-lines').innerHTML='';
+  showErr('bill-error','');
+  populateSuppDropdowns();
+  addBillLine(); addBillLine();
+  updateBillTotals();
+  openModal('bill-modal');
+}
+
+function addBillLine(){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td><input type="text" placeholder="Description" oninput="updateBillTotals()"></td>
+    <td><select><option value="">—</option>${expenseAccOpts()}</select></td>
+    <td><input type="number" value="1" min="0.001" step="any" oninput="updateBillTotals()" style="max-width:60px;text-align:right"></td>
+    <td><input type="number" value="0" min="0" step="0.01" oninput="updateBillTotals()" style="max-width:100px;text-align:right"></td>
+    <td><input type="number" value="0" min="0" max="100" step="0.01" oninput="updateBillTotals()" style="max-width:60px;text-align:right"></td>
+    <td class="amount">0.00</td>
+    <td><button onclick="this.closest('tr').remove();updateBillTotals()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px">✕</button></td>`;
+  document.getElementById('bill-lines').appendChild(tr);
+}
+
+function updateBillTotals(){
+  let sub=0,tax=0;
+  document.querySelectorAll('#bill-lines tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const net=parseFloat(ins[0]?.value||0)*parseFloat(ins[1]?.value||0);
+    const t=net*(parseFloat(ins[2]?.value||0)/100);
+    sub+=net; tax+=t;
+    const td=tr.querySelector('td:nth-child(6)'); if(td) td.textContent=(net+t).toFixed(2);
+  });
+  document.getElementById('bill-subtotal').textContent=sub.toFixed(2);
+  document.getElementById('bill-tax').textContent=tax.toFixed(2);
+  document.getElementById('bill-total').textContent=(sub+tax).toFixed(2);
+}
+
+async function saveBill(){
+  const supplier_id=parseInt(document.getElementById('bill-supplier').value);
+  const supplier_ref=document.getElementById('bill-sref').value||null;
+  const date=document.getElementById('bill-date').value;
+  const due_date=document.getElementById('bill-due').value;
+  const notes=document.getElementById('bill-notes').value||null;
+  if(!supplier_id||!date||!due_date){ showErr('bill-error','Supplier, date and due date are required'); return; }
+  const lines=[];
+  document.querySelectorAll('#bill-lines tr').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    const desc=tr.querySelector('input[type=text]')?.value?.trim();
+    const sel=tr.querySelector('select');
+    const qty=parseFloat(ins[0]?.value||0);
+    const up=parseFloat(ins[1]?.value||0);
+    const tr_=parseFloat(ins[2]?.value||0);
+    if(desc&&(qty*up)>0) lines.push({description:desc,account_id:parseInt(sel?.value)||null,quantity:qty,unit_price:up,tax_rate:tr_});
+  });
+  if(lines.length===0){ showErr('bill-error','Add at least one line item'); return; }
+  try{
+    const r=await api('POST','/api/bills',{supplier_id,supplier_ref,date,due_date,notes,lines});
+    if(!r) return;
+    toast(`Bill ${r.bill_number} created — ${S.symbol}${r.total.toFixed(2)}`);
+    closeModal('bill-modal'); loadBills(); loadDashboard();
+  }catch(e){ showErr('bill-error',e.message); }
+}
+
+async function viewBill(id){
+  try{
+    const b=await api('GET',`/api/bills/${id}`); if(!b) return;
+    const sym=S.symbol;
+    document.getElementById('billd-title').textContent=`${b.bill_number} — ${b.supplier_name}`;
+    document.getElementById('billd-body').innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Supplier</div>
+          <div style="font-weight:700">${esc(b.supplier_name)}</div>
+          <div style="font-size:12px;color:var(--muted)">${esc(b.supplier_ref?'Ref: '+b.supplier_ref:'')}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Bill Details</div>
+          <div style="font-size:13px">Date: <strong>${dateStr(b.date)}</strong></div>
+          <div style="font-size:13px">Due: <strong>${dateStr(b.due_date)}</strong></div>
+          <div style="font-size:13px">Status: <span class="badge ${b.status==='paid'?'posted':'draft'}">${b.status}</span></div></div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:16px"><table>
+        <thead><tr><th>Description</th><th>Account</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>${(b.lines||[]).map(l=>`<tr>
+          <td>${esc(l.description)}</td>
+          <td style="font-size:12px;color:var(--muted)">${l.account_code?`${l.account_code} ${l.account_name}`:''}</td>
+          <td style="text-align:right">${l.quantity}</td>
+          <td style="text-align:right">${fmt(l.unit_price,sym)}</td>
+          <td style="text-align:right" class="amount">${fmt(l.line_total,sym)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div style="display:flex;justify-content:flex-end;gap:24px;margin-bottom:16px">
+        <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Total</div><div class="amount" style="font-size:18px;color:var(--navy)">${fmt(b.total,sym)}</div></div>
+        <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Balance Due</div><div class="amount neg" style="font-size:18px">${fmt(b.balance_due,sym)}</div></div>
+      </div>
+      ${b.payments&&b.payments.length>0?`<div style="font-size:13px;font-weight:700;margin-bottom:8px">Payment History</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Payment #</th><th>Date</th><th>Method</th><th>Amount</th></tr></thead>
+        <tbody>${b.payments.map(p=>`<tr><td>${p.payment_number}</td><td>${dateStr(p.date)}</td><td>${p.payment_method}</td><td class="amount pos">${fmt(p.amount,sym)}</td></tr>`).join('')}</tbody>
+      </table></div>`:''}`;
+    const footer=document.getElementById('billd-footer');
+    footer.innerHTML=`<button class="btn btn-outline" onclick="closeModal('bill-detail-modal')">Close</button>`;
+    if((b.status==='unpaid'||b.status==='partial')&&['admin','accountant','cashier'].includes((S.user||{}).role||'')){
+      footer.innerHTML+=`<button class="btn btn-primary" onclick="closeModal('bill-detail-modal');quickBillPay(${b.supplier_id},${b.id})">Record Payment</button>`;
+    }
+    openModal('bill-detail-modal');
+  }catch(e){ toast('Failed to load bill','error'); }
+}
+
+async function voidBill(id){
+  if(!confirm('Void this bill?')) return;
+  try{ await api('POST',`/api/bills/${id}/void`); toast('Bill voided'); loadBills(); }
+  catch(e){ toast(e.message,'error'); }
+}
+
+function quickBillPay(supplierId,billId){
+  openBillPaymentModal();
+  setTimeout(()=>{
+    if(supplierId){ document.getElementById('bpay-supplier').value=supplierId; loadSupplierBills(); }
+    if(billId) setTimeout(()=>{ document.getElementById('bpay-bill').value=billId; },100);
+  },50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BILL PAYMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadBillPayments(){
+  try{
+    const d=await api('GET','/api/bill-payments');
+    const sym=S.symbol;
+    document.getElementById('bill-payments-body').innerHTML=!d||d.length===0
+      ?`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No payments</div></div></td></tr>`
+      :d.map(p=>`<tr>
+          <td><strong>${p.payment_number}</strong></td>
+          <td>${esc(p.supplier_name)}</td>
+          <td style="font-size:12px;color:var(--muted)">${p.bill_number||'—'}</td>
+          <td>${dateStr(p.date)}</td>
+          <td style="text-transform:capitalize">${p.payment_method}</td>
+          <td class="amount neg">${fmt(p.amount,sym)}</td>
+          <td style="color:var(--muted)">${esc(p.reference||'')}</td>
+        </tr>`).join('');
+  }catch(e){ toast('Failed to load payments','error'); }
+}
+
+function openBillPaymentModal(){
+  populateSuppDropdowns();
+  populateBankDropdowns('bpay-bank');
+  document.getElementById('bpay-date').value=today();
+  document.getElementById('bpay-amount').value='';
+  document.getElementById('bpay-ref').value='';
+  document.getElementById('bpay-bill').innerHTML='<option value="">Unallocated / General payment</option>';
+  showErr('bpay-error','');
+  openModal('bill-payment-modal');
+}
+
+async function loadSupplierBills(){
+  const sid=document.getElementById('bpay-supplier')?.value;
+  const sel=document.getElementById('bpay-bill');
+  sel.innerHTML='<option value="">Unallocated / General payment</option>';
+  if(!sid) return;
+  try{
+    const d1=await api('GET',`/api/bills?supplier_id=${sid}&status=unpaid`)||[];
+    const d2=await api('GET',`/api/bills?supplier_id=${sid}&status=partial`)||[];
+    const sym=S.symbol;
+    [...d1,...d2].forEach(b=>{
+      const opt=document.createElement('option');
+      opt.value=b.id;
+      opt.textContent=`${b.bill_number} — Due: ${fmt(b.balance_due,sym)} (${dateStr(b.due_date)})`;
+      sel.appendChild(opt);
+    });
+  }catch(e){}
+}
+
+async function saveBillPayment(){
+  const supplier_id=parseInt(document.getElementById('bpay-supplier').value);
+  const bill_id=parseInt(document.getElementById('bpay-bill').value)||null;
+  const date=document.getElementById('bpay-date').value;
+  const amount=parseFloat(document.getElementById('bpay-amount').value);
+  const payment_method=document.getElementById('bpay-method').value;
+  const reference=document.getElementById('bpay-ref').value||null;
+  const bank_account_id=parseInt(document.getElementById('bpay-bank').value)||null;
+  if(!supplier_id||!date||!amount){ showErr('bpay-error','Supplier, date and amount are required'); return; }
+  try{
+    const r=await api('POST','/api/bill-payments',{supplier_id,bill_id,date,amount,payment_method,reference,bank_account_id});
+    if(!r) return;
+    toast(`Payment ${r.payment_number} recorded`);
+    closeModal('bill-payment-modal'); loadBillPayments(); loadBills(); loadDashboard();
+  }catch(e){ showErr('bpay-error',e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BANK ACCOUNTS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadBankAccounts(){
+  try{
+    const d=await api('GET','/api/bank-accounts');
+    P2.bankAccounts=d||[];
+    const sym=S.symbol;
+    document.getElementById('bank-accounts-body').innerHTML=P2.bankAccounts.length===0
+      ?`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🏦</div><div class="empty-title">No bank accounts</div><div class="empty-text">Add accounts to track bank balances and use in receipts/payments</div></div></td></tr>`
+      :P2.bankAccounts.map(b=>`<tr>
+          <td><strong>${esc(b.name)}</strong></td>
+          <td>${esc(b.bank_name||'')}</td>
+          <td style="font-family:monospace">${esc(b.account_number||'')}</td>
+          <td style="font-size:12px"><code>${b.gl_code}</code> ${esc(b.gl_name)}</td>
+          <td>${b.currency}</td>
+          <td class="amount pos">${fmt(b.balance,sym)}</td>
+        </tr>`).join('');
+    populateBankDropdowns('rcpt-bank');
+    populateBankDropdowns('bpay-bank');
+  }catch(e){ toast('Failed to load bank accounts','error'); }
+}
+
+function populateBankDropdowns(elId){
+  const el=document.getElementById(elId); if(!el) return;
+  const dflt=elId.startsWith('rcpt')?'Default (Cash on Hand)':'Default (Main Bank)';
+  el.innerHTML=`<option value="">${dflt}</option>`+
+    P2.bankAccounts.map(b=>`<option value="${b.id}">${esc(b.name)} — ${b.currency}</option>`).join('');
+}
+
+function openBankModal(){
+  showErr('bank-error','');
+  document.getElementById('bank-name').value='';
+  document.getElementById('bank-bankname').value='';
+  document.getElementById('bank-accnum').value='';
+  document.getElementById('bank-currency').value=S.company?.currency||'USD';
+  // Populate GL account dropdown (only cash/bank sub-types)
+  const sel=document.getElementById('bank-glacc');
+  sel.innerHTML='<option value="">Select account...</option>'+
+    S.accounts.filter(a=>['cash','bank'].includes(a.sub_type)).map(a=>`<option value="${a.id}">${a.code} — ${esc(a.name)}</option>`).join('');
+  openModal('bank-modal');
+}
+
+async function saveBankAccount(){
+  const name=document.getElementById('bank-name').value.trim();
+  const gl_account_id=parseInt(document.getElementById('bank-glacc').value);
+  if(!name||!gl_account_id){ showErr('bank-error','Name and GL account are required'); return; }
+  try{
+    await api('POST','/api/bank-accounts',{
+      name,bank_name:document.getElementById('bank-bankname').value||null,
+      account_number:document.getElementById('bank-accnum').value||null,
+      gl_account_id,currency:document.getElementById('bank-currency').value||'USD'
+    });
+    toast('Bank account added');
+    closeModal('bank-modal'); loadBankAccounts();
+  }catch(e){ showErr('bank-error',e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGING REPORTS
+// ═══════════════════════════════════════════════════════════════════════════════
+function agingTable(data, nameField, numField){
+  const sym=S.symbol;
+  const cols=['current','d1_30','d31_60','d61_90','over_90'];
+  const labels=['Current','1–30 days','31–60 days','61–90 days','> 90 days'];
+  const totKeys=['t_current','t_1_30','t_31_60','t_61_90','t_over_90'];
+  let html=`<div class="table-wrap"><table>
+    <thead><tr><th>${nameField==='customer_name'?'Customer':'Supplier'}</th><th>${numField==='invoice_number'?'Invoice #':'Bill #'}</th><th>Due Date</th>${labels.map(l=>`<th style="text-align:right">${l}</th>`).join('')}<th style="text-align:right">Total</th></tr></thead><tbody>`;
+  let hasData=false;
+  cols.forEach((col,i)=>{
+    (data[col]||[]).forEach(r=>{
+      hasData=true;
+      const rowTotal=r.balance_due||0;
+      const cells=cols.map((_,j)=>j===i?`<td style="text-align:right" class="amount neg">${fmt(rowTotal,sym)}</td>`:`<td></td>`).join('');
+      html+=`<tr><td>${esc(r[nameField])}</td><td style="font-size:12px">${r[numField]||'—'}</td><td>${dateStr(r.due_date)}</td>${cells}<td style="text-align:right" class="amount neg">${fmt(rowTotal,sym)}</td></tr>`;
+    });
+  });
+  if(!hasData) html+=`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No outstanding items</div></div></td></tr>`;
+  html+=`</tbody><tfoot><tr style="background:var(--navy);color:#fff;font-weight:800"><td colspan="3">TOTALS</td>`;
+  totKeys.forEach(k=>{ html+=`<td style="text-align:right;padding:10px 14px">${fmt(data[k]||0,sym)}</td>`; });
+  html+=`<td style="text-align:right;padding:10px 14px">${fmt(data.grand_total||0,sym)}</td></tr></tfoot></table></div>`;
+  return html;
+}
+
+async function loadARaging(){
+  try{
+    const d=await api('GET','/api/reports/ar-aging'); if(!d) return;
+    document.getElementById('ar-aging-content').innerHTML=agingTable(d,'customer_name','invoice_number');
+  }catch(e){ toast('Failed to load AR aging','error'); }
+}
+
+async function loadAPaging(){
+  try{
+    const d=await api('GET','/api/reports/ap-aging'); if(!d) return;
+    document.getElementById('ap-aging-content').innerHTML=agingTable(d,'supplier_name','bill_number');
+  }catch(e){ toast('Failed to load AP aging','error'); }
+}
+
+function exportAging(type){
+  const elId=type==='ar'?'ar-aging-content':'ap-aging-content';
+  const rows=[]; let header=true;
+  document.querySelectorAll(`#${elId} table tr`).forEach(tr=>{
+    const cells=[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim());
+    if(cells.some(c=>c)) rows.push(cells);
+  });
+  downloadCSV(`${type}_aging.csv`,rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 3 — OFFLINE INFRASTRUCTURE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── IndexedDB wrapper ─────────────────────────────────────────────────────────
+class TTechDB {
+  constructor() { this.db = null; }
+
+  async open() {
+    if (this.db) return this;
+    return new Promise(res => {
+      const req = indexedDB.open('ttech_offline', 2);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        ['accounts','customers','suppliers','invoices','bills',
+         'journals','receipts','bill_payments','bank_accounts'].forEach(name => {
+          if (!db.objectStoreNames.contains(name))
+            db.createObjectStore(name, { keyPath: 'id' });
+        });
+        if (!db.objectStoreNames.contains('sync_queue'))
+          db.createObjectStore('sync_queue', { keyPath: 'qid', autoIncrement: true });
+        if (!db.objectStoreNames.contains('meta'))
+          db.createObjectStore('meta', { keyPath: 'key' });
+      };
+      req.onsuccess = e => { this.db = e.target.result; res(this); };
+      req.onerror   = ()  => { console.warn('IndexedDB unavailable'); res(this); };
+    });
+  }
+
+  _os(store, mode = 'readonly') {
+    if (!this.db) return null;
+    try { return this.db.transaction(store, mode).objectStore(store); }
+    catch { return null; }
+  }
+
+  async getAll(store) {
+    const os = this._os(store);
+    if (!os) return [];
+    return new Promise(res => {
+      const r = os.getAll();
+      r.onsuccess = () => res(r.result || []);
+      r.onerror   = () => res([]);
+    });
+  }
+
+  async putAll(store, items) {
+    if (!this.db || !items.length) return;
+    const tx = this.db.transaction(store, 'readwrite');
+    const os = tx.objectStore(store);
+    items.forEach(item => { try { os.put(item); } catch {} });
+    return new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
+  }
+
+  async clear(store) {
+    const os = this._os(store, 'readwrite');
+    if (!os) return;
+    return new Promise(res => { const r = os.clear(); r.onsuccess = res; r.onerror = res; });
+  }
+
+  async addToQueue(op) {
+    if (!this.db) return null;
+    const os = this._os('sync_queue', 'readwrite');
+    if (!os) return null;
+    return new Promise(res => {
+      const r = os.add({ ...op, ts: Date.now(), retries: 0 });
+      r.onsuccess = () => res(r.result);
+      r.onerror   = () => res(null);
+    });
+  }
+
+  async getQueue() { return this.getAll('sync_queue'); }
+
+  async removeFromQueue(qid) {
+    const os = this._os('sync_queue', 'readwrite');
+    if (!os) return;
+    return new Promise(res => { const r = os.delete(qid); r.onsuccess = res; r.onerror = res; });
+  }
+
+  async getMeta(key) {
+    const os = this._os('meta');
+    if (!os) return null;
+    return new Promise(res => {
+      const r = os.get(key);
+      r.onsuccess = () => res(r.result?.value ?? null);
+      r.onerror   = () => res(null);
+    });
+  }
+
+  async setMeta(key, value) {
+    const os = this._os('meta', 'readwrite');
+    if (!os) return;
+    return new Promise(res => { const r = os.put({ key, value }); r.onsuccess = res; r.onerror = res; });
+  }
+}
+
+const offlineDB = new TTechDB();
+
+// ── Cache helpers ─────────────────────────────────────────────────────────────
+const PATH_STORE = {
+  '/api/accounts':      'accounts',
+  '/api/customers':     'customers',
+  '/api/suppliers':     'suppliers',
+  '/api/invoices':      'invoices',
+  '/api/bills':         'bills',
+  '/api/journals':      'journals',
+  '/api/receipts':      'receipts',
+  '/api/bill-payments': 'bill_payments',
+  '/api/bank-accounts': 'bank_accounts',
+};
+
+function pathToStore(path) {
+  const base = path.split('?')[0];
+  for (const [pfx, store] of Object.entries(PATH_STORE)) {
+    if (base === pfx || base.startsWith(pfx + '/')) return store;
+  }
+  return null;
+}
+
+async function _cacheResponse(path, data) {
+  const store = pathToStore(path);
+  if (!store || !Array.isArray(data)) return;
+  try { await offlineDB.clear(store); if (data.length) await offlineDB.putAll(store, data); }
+  catch {}
+}
+
+async function _getFromCache(path) {
+  const store = pathToStore(path);
+  if (!store) return null;
+  try { return await offlineDB.getAll(store); }
+  catch { return null; }
+}
+
+// ── Sync state ────────────────────────────────────────────────────────────────
+const syncState = { pending: 0, syncing: false, lastSync: null };
+
+function updateSyncBadge() {
+  const badge  = document.getElementById('sync-badge');
+  const text   = document.getElementById('sync-text');
+  const banner = document.getElementById('offline-banner');
+  const pendEl = document.getElementById('offline-pending-count');
+  if (!badge) return;
+
+  if (!navigator.onLine) {
+    badge.className = 'sync-badge offline';
+    text.textContent = syncState.pending > 0
+      ? `Offline · ${syncState.pending} pending`
+      : 'Offline';
+    if (banner) banner.classList.add('visible');
+    if (pendEl) pendEl.textContent = syncState.pending > 0
+      ? `${syncState.pending} change${syncState.pending > 1 ? 's' : ''} will sync when online`
+      : 'Viewing cached data';
+  } else if (syncState.syncing) {
+    badge.className = 'sync-badge syncing';
+    text.textContent = 'Syncing…';
+    if (banner) banner.classList.remove('visible');
+  } else {
+    badge.className = 'sync-badge online';
+    text.textContent = syncState.pending > 0
+      ? `Online · ${syncState.pending} pending`
+      : syncState.lastSync
+        ? `Synced ${_timeAgo(syncState.lastSync)}`
+        : 'Online';
+    if (banner) banner.classList.remove('visible');
+  }
+}
+
+function _timeAgo(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if (s < 60)   return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+// ── Sync queue processor ──────────────────────────────────────────────────────
+async function processSyncQueue() {
+  if (syncState.syncing || !navigator.onLine) return;
+  const queue = await offlineDB.getQueue();
+  if (!queue.length) { syncState.pending = 0; updateSyncBadge(); return; }
+
+  syncState.syncing = true; updateSyncBadge();
+  let ok = 0, fail = 0;
+
+  for (const op of queue) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (S.token) headers['Authorization'] = `Bearer ${S.token}`;
+      const res = await fetch(`${API}${op.path}`, {
+        method: op.method, headers,
+        body: op.body ? JSON.stringify(op.body) : undefined,
+      });
+      if (res.ok || res.status < 500) {
+        await offlineDB.removeFromQueue(op.qid);
+        ok++;
+      } else { fail++; }
+    } catch { fail++; }
+  }
+
+  syncState.syncing = false;
+  syncState.lastSync = new Date();
+  syncState.pending = (await offlineDB.getQueue()).length;
+  await offlineDB.setMeta('lastSync', syncState.lastSync.toISOString());
+  updateSyncBadge();
+
+  if (ok > 0) {
+    toast(`✓ Synced ${ok} pending operation${ok > 1 ? 's' : ''}`, 'success');
+    _refreshCurrentView();
+  }
+  if (fail > 0) toast(`${fail} operation${fail > 1 ? 's' : ''} failed to sync`, 'error');
+}
+
+async function _refreshCurrentView() {
+  const v = S.currentView;
+  const reloaders = {
+    dashboard: loadDashboard, accounts: loadAccounts, journals: loadJournals,
+    ledger: loadLedger, customers: loadCustomers, invoices: loadInvoices,
+    receipts: loadReceipts, suppliers: loadSuppliers, bills: loadBills,
+    'bill-payments': loadBillPayments, 'bank-accounts': loadBankAccounts,
+  };
+  if (reloaders[v]) reloaders[v]();
+}
+
+// ── PWA install ───────────────────────────────────────────────────────────────
+let _deferredInstall = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'none';
+  _deferredInstall = null;
+  toast('T-Tech Accountant installed!', 'success');
+});
+
+async function installPWA() {
+  if (!_deferredInstall) { toast('Open in Chrome/Edge and use the address bar install button', 'info'); return; }
+  _deferredInstall.prompt();
+  const { outcome } = await _deferredInstall.userChoice;
+  if (outcome === 'accepted') _deferredInstall = null;
+}
+
+// ── Invoice / Bill print ──────────────────────────────────────────────────────
+async function printInvoice(id) {
+  try {
+    const inv = await api('GET', `/api/invoices/${id}`);
+    if (!inv) return;
+    const c = S.company || {};
+    const sym = S.symbol;
+    const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Invoice ${inv.invoice_number}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,Helvetica,sans-serif;color:#1a202c;padding:40px;max-width:800px;margin:0 auto;font-size:13px}
+      .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+      .brand{font-size:26px;font-weight:800;color:#1e3a5f}.brand-sub{font-size:11px;color:#718096;margin-top:3px}
+      .inv-lbl{font-size:34px;font-weight:800;color:#c8963e;text-align:right}
+      .inv-meta{font-size:12px;color:#718096;text-align:right;margin-top:4px;line-height:1.7}
+      .addrs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+      .addr h4{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#a0aec0;margin-bottom:6px}
+      .addr p{line-height:1.7}
+      table{width:100%;border-collapse:collapse;margin:20px 0}
+      thead th{background:#1e3a5f;color:#fff;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+      td{padding:8px 12px;border-bottom:1px solid #e2e8f0}
+      .r{text-align:right}.num{font-variant-numeric:tabular-nums}
+      .tots{float:right;width:260px;margin-top:8px}
+      .trow{display:flex;justify-content:space-between;padding:4px 0}
+      .grand{background:#1e3a5f;color:#fff;padding:9px 12px;border-radius:6px;margin-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px}
+      .balance-due{background:#fff5f5;color:#e53e3e;padding:8px 12px;border-radius:6px;margin-top:5px;display:flex;justify-content:space-between;font-weight:700}
+      .paid-stamp{text-align:center;color:#38a169;font-weight:800;margin-top:6px;font-size:13px}
+      .notes{margin-top:32px;padding:14px;background:#f7fafc;border-radius:6px;font-size:12px;color:#4a5568}
+      .footer{margin-top:36px;text-align:center;font-size:11px;color:#a0aec0;border-top:1px solid #e2e8f0;padding-top:12px}
+      .print-fab{position:fixed;bottom:24px;right:24px;background:#1e3a5f;color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+      @media print{.print-fab{display:none}body{padding:20px}}
+    </style></head><body>
+    <button class="print-fab" onclick="window.print()">🖨 Print / Save PDF</button>
+    <div class="top">
+      <div><div class="brand">${esc(c.name || 'Company')}</div>
+        <div class="brand-sub">${esc(c.address || '')}${c.phone ? '<br>' + esc(c.phone) : ''}${c.email ? '<br>' + esc(c.email) : ''}${c.tax_number ? '<br>Tax: ' + esc(c.tax_number) : ''}</div></div>
+      <div><div class="inv-lbl">INVOICE</div>
+        <div class="inv-meta">${inv.invoice_number}<br>Date: ${dateStr(inv.date)}<br>Due: ${dateStr(inv.due_date)}</div></div>
+    </div>
+    <div class="addrs">
+      <div class="addr"><h4>From</h4><p><strong>${esc(c.name || '')}</strong></p></div>
+      <div class="addr"><h4>Bill To</h4><p><strong>${esc(inv.customer_name)}</strong>${inv.customer_address ? '<br>' + esc(inv.customer_address) : ''}${inv.customer_email ? '<br>' + esc(inv.customer_email) : ''}${inv.customer_tax ? '<br>Tax: ' + esc(inv.customer_tax) : ''}</p></div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Unit Price</th><th class="r">Tax %</th><th class="r">Amount</th></tr></thead>
+      <tbody>${(inv.lines || []).map((l, i) => `<tr>
+        <td>${i + 1}</td><td>${esc(l.description)}</td>
+        <td class="r">${l.quantity}</td>
+        <td class="r num">${sym}${parseFloat(l.unit_price).toFixed(2)}</td>
+        <td class="r">${l.tax_rate > 0 ? l.tax_rate + '%' : '—'}</td>
+        <td class="r num">${sym}${parseFloat(l.line_total).toFixed(2)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="tots">
+      <div class="trow"><span>Subtotal</span><span class="num">${sym}${parseFloat(inv.subtotal).toFixed(2)}</span></div>
+      ${inv.tax_amount > 0 ? `<div class="trow"><span>Tax</span><span class="num">${sym}${parseFloat(inv.tax_amount).toFixed(2)}</span></div>` : ''}
+      ${inv.discount > 0 ? `<div class="trow"><span>Discount</span><span class="num">−${sym}${parseFloat(inv.discount).toFixed(2)}</span></div>` : ''}
+      <div class="grand"><span>TOTAL</span><span class="num">${sym}${parseFloat(inv.total).toFixed(2)}</span></div>
+      ${parseFloat(inv.balance_due) > 0.005
+        ? `<div class="balance-due"><span>Balance Due</span><span class="num">${sym}${parseFloat(inv.balance_due).toFixed(2)}</span></div>`
+        : `<div class="paid-stamp">✓ PAID IN FULL</div>`}
+    </div>
+    <div style="clear:both"></div>
+    ${inv.notes ? `<div class="notes"><strong>Notes:</strong> ${esc(inv.notes)}</div>` : ''}
+    <div class="footer">Generated by T-Tech Accountant · ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+    </body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=750');
+    if (w) { w.document.write(doc); w.document.close(); }
+    else toast('Allow pop-ups to print invoices', 'info');
+  } catch (e) { toast('Print failed: ' + e.message, 'error'); }
+}
+
+async function printBill(id) {
+  try {
+    const b = await api('GET', `/api/bills/${id}`);
+    if (!b) return;
+    const c = S.company || {};
+    const sym = S.symbol;
+    const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bill ${b.bill_number}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;color:#1a202c;padding:40px;max-width:800px;margin:0 auto;font-size:13px}
+      .top{display:flex;justify-content:space-between;margin-bottom:32px}.brand{font-size:26px;font-weight:800;color:#1e3a5f}
+      .bill-lbl{font-size:34px;font-weight:800;color:#e53e3e;text-align:right}
+      .meta{font-size:12px;color:#718096;text-align:right;margin-top:4px;line-height:1.7}
+      table{width:100%;border-collapse:collapse;margin:20px 0}
+      thead th{background:#1e3a5f;color:#fff;padding:9px 12px;text-align:left;font-size:11px}
+      td{padding:8px 12px;border-bottom:1px solid #e2e8f0}.r{text-align:right}
+      .tots{float:right;width:240px}.trow{display:flex;justify-content:space-between;padding:4px 0}
+      .grand{background:#1e3a5f;color:#fff;padding:9px 12px;border-radius:6px;margin-top:6px;display:flex;justify-content:space-between;font-weight:800}
+      .print-fab{position:fixed;bottom:24px;right:24px;background:#1e3a5f;color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer}
+      @media print{.print-fab{display:none}}
+    </style></head><body>
+    <button class="print-fab" onclick="window.print()">🖨 Print</button>
+    <div class="top">
+      <div><div class="brand">${esc(c.name || 'Company')}</div></div>
+      <div><div class="bill-lbl">BILL</div><div class="meta">${b.bill_number}${b.supplier_ref ? '<br>Ref: ' + esc(b.supplier_ref) : ''}<br>Date: ${dateStr(b.date)}<br>Due: ${dateStr(b.due_date)}</div></div>
+    </div>
+    <p><strong>Supplier:</strong> ${esc(b.supplier_name)}</p>
+    <table>
+      <thead><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Unit Price</th><th class="r">Amount</th></tr></thead>
+      <tbody>${(b.lines || []).map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.description)}</td><td class="r">${l.quantity}</td><td class="r">${sym}${parseFloat(l.unit_price).toFixed(2)}</td><td class="r">${sym}${parseFloat(l.line_total).toFixed(2)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="tots">
+      <div class="trow"><span>Subtotal</span><span>${sym}${parseFloat(b.subtotal).toFixed(2)}</span></div>
+      ${b.tax_amount > 0 ? `<div class="trow"><span>Tax</span><span>${sym}${parseFloat(b.tax_amount).toFixed(2)}</span></div>` : ''}
+      <div class="grand"><span>TOTAL DUE</span><span>${sym}${parseFloat(b.total).toFixed(2)}</span></div>
+    </div>
+    <div style="clear:both"></div>
+    ${b.notes ? `<div style="margin-top:24px;padding:12px;background:#f7fafc;border-radius:6px;font-size:12px">${esc(b.notes)}</div>` : ''}
+    </body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (w) { w.document.write(doc); w.document.close(); }
+    else toast('Allow pop-ups to print bills', 'info');
+  } catch (e) { toast('Print failed: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════════
+(async function boot() {
+  // ── Service worker ──────────────────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(() => {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data?.type === 'SYNC_REQUESTED') processSyncQueue();
+      });
+    }).catch(() => {});
+  }
+
+  // ── IndexedDB ───────────────────────────────────────────────────────────
+  try {
+    await offlineDB.open();
+    syncState.pending = (await offlineDB.getQueue()).length;
+    const ls = await offlineDB.getMeta('lastSync');
+    if (ls) syncState.lastSync = new Date(ls);
+  } catch {}
+  updateSyncBadge();
+
+  // ── Check setup status ──────────────────────────────────────────────────
+  let setupRequired = false;
+  try {
+    const status = await fetch(`${API}/api/auth/status`).then(r => r.json());
+    setupRequired = status.setup_required;
+  } catch {}
+
+  if (setupRequired) { showSetup(); return; }
+
+  // ── Auto-login ──────────────────────────────────────────────────────────
+  if (S.token && S.user) {
+    try { await launchApp(); return; } catch {}
+  }
+
+  showLogin();
+})();
+</script>
+</body>
+</html>

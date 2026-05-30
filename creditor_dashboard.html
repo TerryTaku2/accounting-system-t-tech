@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeXus — Creditor Surveillance Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --navy:#1e3a5f;--navy-light:#2c5282;--gold:#c8963e;
+            --gradient:linear-gradient(135deg,#1e3a5f,#2c5282);
+            --bg:#f0f4f8;--white:#fff;--text:#1a202c;--text-light:#4a5568;--text-muted:#718096;
+            --border:#e2e8f0;--shadow:0 4px 16px rgba(30,58,95,.08);--shadow-sm:0 1px 3px rgba(0,0,0,.04);
+            --radius:16px;--panel:300px;--header:60px;
+        }
+        body{font-family:'Nunito',-apple-system,sans-serif;background:var(--bg);min-height:100vh}
+        .header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(--navy);z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+        .header-brand{font-family:'Fredoka One',cursive;font-size:22px;background:linear-gradient(135deg,#fff,#c8963e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .header-title{color:rgba(255,255,255,.8);font-size:13px;font-weight:600;margin-top:2px}
+        .header-right{display:flex;align-items:center;gap:12px}
+        .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(200,150,62,.3);color:#d4a853}
+        .layout{display:grid;grid-template-columns:var(--panel) 1fr;min-height:100vh;padding-top:var(--header)}
+        /* SME LIST */
+        .sme-panel{background:#fff;border-right:1px solid var(--border);height:calc(100vh - var(--header));overflow-y:auto;position:sticky;top:var(--header)}
+        .sme-search{padding:14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:10}
+        .sme-search input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;outline:none}
+        .sme-search input:focus{border-color:var(--navy)}
+        .sme-item{padding:14px 16px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .15s}
+        .sme-item:hover{background:#f8fafc}
+        .sme-item.active{background:#f0f7ff;border-left:3px solid var(--navy)}
+        .sme-name{font-weight:700;font-size:13px;color:var(--text)}
+        .sme-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+        /* DETAIL */
+        .detail-panel{padding:24px;overflow-y:auto}
+        .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);text-align:center;padding:40px}
+        .empty-state .icon{font-size:48px;margin-bottom:16px}
+        /* CARDS */
+        .detail-header{margin-bottom:20px}
+        .detail-biz-name{font-size:22px;font-weight:800;color:var(--navy)}
+        .detail-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+        .meta-chip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#f0f4f8;color:var(--text-light)}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+        .stat-card{background:#fff;border-radius:12px;padding:16px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+        .stat-label{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+        .stat-value{font-size:22px;font-weight:800;color:var(--navy)}
+        .stat-sub{font-size:11px;color:var(--text-muted);margin-top:3px}
+        .section-card{background:#fff;border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+        .section-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .icon-badge{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+        .icon-badge.blue{background:#ebf4ff;color:#3b82f6}
+        .icon-badge.green{background:#f0fff4;color:#48bb78}
+        .icon-badge.gold{background:#fffaf0;color:#c8963e}
+        .icon-badge.purple{background:#faf5ff;color:#8b5cf6}
+        .icon-badge.red{background:#fee2e2;color:#ef4444}
+        /* SCORE */
+        .score-row{display:flex;align-items:center;gap:20px;margin-bottom:12px}
+        .score-big{font-size:48px;font-weight:800}
+        .score-detail{flex:1}
+        .score-bar-wrap{background:#f0f4f8;border-radius:6px;height:8px;margin:4px 0 2px}
+        .score-bar{height:8px;border-radius:6px;transition:width .5s}
+        /* TABLE */
+        .data-table{width:100%;border-collapse:collapse;font-size:12px}
+        .data-table th{background:#f8fafc;padding:8px 12px;text-align:left;font-weight:700;color:var(--text-light);font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+        .data-table td{padding:8px 12px;border-bottom:1px solid #f0f4f8;color:var(--text)}
+        .data-table tr:last-child td{border-bottom:none}
+        /* CHART BARS */
+        .chart-bars{display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 4px}
+        .chart-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+        .chart-bar-wrap{display:flex;gap:2px;align-items:flex-end;width:100%;height:60px}
+        .chart-bar{width:50%;border-radius:3px 3px 0 0;min-height:2px;transition:height .3s}
+        .chart-label{font-size:9px;color:var(--text-muted);text-align:center}
+        /* AUDIT */
+        .audit-flag{padding:8px 12px;border-radius:8px;margin-bottom:8px;border-left:3px solid}
+        .audit-flag.critical{background:#fff5f5;border-color:#e53e3e}
+        .audit-flag.alert{background:#fffbeb;border-color:#f6ad55}
+        .audit-flag.warning{background:#fefce8;border-color:#ecc94b}
+        .flag-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:2px}
+        .flag-msg{font-size:12px;color:var(--text)}
+        /* LIVE indicator */
+        .live-dot{width:8px;height:8px;border-radius:50%;background:#48bb78;display:inline-block;margin-right:4px;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        /* Toast */
+        .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:25px;font-size:13px;font-weight:600;z-index:2000;transition:transform .3s;border-left:4px solid var(--gold)}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+        @media(max-width:768px){.layout{grid-template-columns:1fr}.sme-panel{height:auto;position:relative;max-height:250px}}
+    </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<header class="header">
+    <div>
+        <div class="header-brand">NeXus</div>
+        <div class="header-title">Creditor Surveillance Dashboard</div>
+    </div>
+    <div class="header-right">
+        <span><span class="live-dot"></span><span style="color:rgba(255,255,255,.7);font-size:12px;font-weight:600">Live Data</span></span>
+        <span class="badge">READ ONLY</span>
+        <a href="toolkit.html" style="color:rgba(255,255,255,.6);font-size:12px;text-decoration:none;font-weight:600">← Back to Toolkit</a>
+    </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+    <!-- SME LIST -->
+    <div class="sme-panel">
+        <div class="sme-search">
+            <input type="text" id="smeSearch" placeholder="Search SMEs..." oninput="filterSMEs()">
+        </div>
+        <div id="smeList"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Loading SMEs...</div></div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div class="detail-panel" id="detailPanel">
+        <div class="empty-state">
+            <div class="icon">👈</div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">Select an SME</div>
+            <div style="font-size:13px">Click any business on the left to view their financial surveillance data.</div>
+        </div>
+    </div>
+</div>
+
+<script src="../static/config.js"></script>
+<script>
+    const API = NEXUS_CONFIG.apiUrl;
+    let allSMEs = [];
+    let selectedId = null;
+    let autoRefreshTimer = null;
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    const fmt = n => '$' + (n || 0).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    async function apiFetch(path) {
+        const res = await fetch(API + path);
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+    }
+
+    async function loadSMEList() {
+        try {
+            allSMEs = await apiFetch('/api/creditor/sme-list');
+            renderSMEList(allSMEs);
+        } catch(e) {
+            document.getElementById('smeList').innerHTML = '<div style="padding:20px;text-align:center;color:#e53e3e;font-size:13px">Failed to load SMEs. Make sure the Toolkit API is running on port 8005.</div>';
+        }
+    }
+
+    function renderSMEList(smes) {
+        const html = smes.length === 0
+            ? '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No SMEs found.</div>'
+            : smes.map(s => `
+                <div class="sme-item ${s.ID === selectedId ? 'active' : ''}" onclick="selectSME(${s.ID})">
+                    <div class="sme-name">${s.business_name}</div>
+                    <div class="sme-meta">${s.owner_name} · ${s.city} · ${s.sector}</div>
+                </div>`).join('');
+        document.getElementById('smeList').innerHTML = html;
+    }
+
+    function filterSMEs() {
+        const q = document.getElementById('smeSearch').value.toLowerCase();
+        renderSMEList(allSMEs.filter(s =>
+            s.business_name.toLowerCase().includes(q) ||
+            s.owner_name.toLowerCase().includes(q) ||
+            s.city.toLowerCase().includes(q) ||
+            s.sector.toLowerCase().includes(q)
+        ));
+    }
+
+    async function selectSME(id) {
+        selectedId = id;
+        renderSMEList(allSMEs.filter(s => {
+            const q = document.getElementById('smeSearch').value.toLowerCase();
+            return !q || s.business_name.toLowerCase().includes(q) || s.owner_name.toLowerCase().includes(q);
+        }));
+        document.getElementById('detailPanel').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Loading surveillance data...</div>';
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        await loadSMEDetail(id);
+        // Auto-refresh every 60 seconds for "live" feel
+        autoRefreshTimer = setInterval(() => loadSMEDetail(id), 60000);
+    }
+
+    async function loadSMEDetail(id) {
+        try {
+            const [overview, score, audit, income, cashflow, balance] = await Promise.all([
+                apiFetch(`/api/creditor/sme/${id}/overview`),
+                apiFetch(`/api/credit-score/${id}`),
+                apiFetch(`/api/audit/${id}`),
+                apiFetch(`/api/statements/income?user_id=${id}`),
+                apiFetch(`/api/statements/cashflow?user_id=${id}`),
+                apiFetch(`/api/statements/balance?user_id=${id}`)
+            ]);
+
+            const biz = overview.business;
+            const aud = audit.summary;
+
+            // Revenue trend chart
+            const maxRev = Math.max(...overview.revenueTrend.map(r => r.revenue || 0), 1);
+            const chartBars = overview.revenueTrend.map(r => {
+                const h = Math.max(2, Math.round((r.revenue / maxRev) * 55));
+                const ch = Math.max(2, Math.round((r.cogs / maxRev) * 55));
+                return `<div class="chart-col">
+                    <div class="chart-bar-wrap">
+                        <div class="chart-bar" style="height:${h}px;background:#3b82f6"></div>
+                        <div class="chart-bar" style="height:${ch}px;background:#fc8181"></div>
+                    </div>
+                    <div class="chart-label">${r.month ? r.month.slice(5) : ''}</div>
+                </div>`;
+            }).join('');
+
+            // Score colour
+            const scoreColor = score.color;
+
+            // Audit flags
+            const flagsHtml = audit.flags.length === 0
+                ? '<div style="color:#48bb78;font-size:13px;text-align:center;padding:12px">No audit flags — books appear clean.</div>'
+                : audit.flags.map(f => `
+                    <div class="audit-flag ${f.severity}">
+                        <div class="flag-cat">${f.category}</div>
+                        <div class="flag-msg">${f.message}</div>
+                    </div>`).join('');
+
+            // Balance sheet simple
+            const bsLines = balance.simple.lines.map(l => `
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f4f8;font-size:12px;${l.section?'font-weight:800;color:var(--text-muted);text-transform:uppercase;font-size:10px;':''}${l.highlight?'font-weight:800;color:var(--navy);':''}">
+                    <span>${l.label}</span><span>${l.value}</span>
+                </div>`).join('');
+
+            // Income statement simple
+            const incLines = income.simple.lines.map(l => `
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f4f8;font-size:12px;${l.highlight?'font-weight:800;color:var(--navy);':''}${l.big?'font-size:14px;':''}">
+                    <span>${l.label}</span><span>${l.value}</span>
+                </div>`).join('');
+
+            // Loan table
+            const loansHtml = overview.activeLoansDetail.length === 0
+                ? '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px">No active loans</td></tr>'
+                : overview.activeLoansDetail.map(l => {
+                    const balance_amt = l.principal - l.amount_paid;
+                    const today = new Date().toISOString().split('T')[0];
+                    const overdue = l.next_due_date < today;
+                    return `<tr>
+                        <td>${l.lender_name}</td>
+                        <td>${fmt(l.principal)}</td>
+                        <td style="font-weight:700">${fmt(balance_amt)}</td>
+                        <td style="color:${overdue?'#e53e3e':'inherit'}">${l.next_due_date || '—'} ${overdue?'<span style="background:#fee2e2;color:#c53030;padding:1px 6px;border-radius:4px;font-size:10px">OVERDUE</span>':''}</td>
+                    </tr>`;
+                }).join('');
+
+            document.getElementById('detailPanel').innerHTML = `
+                <!-- BIZ HEADER -->
+                <div class="detail-header">
+                    <div class="detail-biz-name">${biz.business_name}</div>
+                    <div class="detail-meta">
+                        <span class="meta-chip">👤 ${biz.owner_name}</span>
+                        <span class="meta-chip">📍 ${biz.city}</span>
+                        <span class="meta-chip">🏭 ${biz.sector}</span>
+                        ${biz.employees ? `<span class="meta-chip">👥 ${biz.employees} employees</span>` : ''}
+                        ${biz.years_active ? `<span class="meta-chip">📅 ${biz.years_active} yrs active</span>` : ''}
+                        <span style="margin-left:auto;font-size:11px;color:var(--text-muted)"><span class="live-dot"></span>Updated just now</span>
+                    </div>
+                </div>
+
+                <!-- KEY STATS -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Credit Score</div>
+                        <div class="stat-value" style="color:${scoreColor}">${score.score}</div>
+                        <div class="stat-sub" style="color:${scoreColor};font-weight:700">${score.grade}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Outstanding Debt</div>
+                        <div class="stat-value" style="color:${overview.totalOutstandingDebt>0?'#e53e3e':'#48bb78'}">${fmt(overview.totalOutstandingDebt)}</div>
+                        <div class="stat-sub">${overview.activeLoans} active loan(s)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Inventory Value</div>
+                        <div class="stat-value">${fmt(overview.inventoryValue)}</div>
+                        <div class="stat-sub">At cost price</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Audit Risk</div>
+                        <div class="stat-value" style="font-size:16px;color:${aud.risk_level==='Clean'?'#48bb78':aud.risk_level.includes('High')?'#e53e3e':aud.risk_level.includes('Medium')?'#f6ad55':'#ecc94b'}">${aud.risk_level}</div>
+                        <div class="stat-sub">${aud.critical} critical, ${aud.alerts} alerts</div>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                    <!-- Credit Score Detail -->
+                    <div class="section-card">
+                        <div class="section-title"><span class="icon-badge purple">⭐</span> Credit Score Factors</div>
+                        <div class="score-row">
+                            <div class="score-big" style="color:${scoreColor}">${score.score}</div>
+                            <div class="score-detail">
+                                <div style="font-weight:800;color:${scoreColor}">${score.grade}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">${score.minScore} – ${score.maxScore}</div>
+                            </div>
+                        </div>
+                        ${Object.entries(score.factors).map(([k, v]) => {
+                            const label = k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                            const pct = Math.round(v.score/v.max*100);
+                            return `<div style="margin-bottom:8px">
+                                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span style="color:var(--text-light)">${label}</span><span style="color:var(--text-muted)">${v.score}/${v.max}</span></div>
+                                <div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%;background:${scoreColor}"></div></div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- Revenue Trend -->
+                    <div class="section-card">
+                        <div class="section-title"><span class="icon-badge blue">📈</span> Revenue Trend (6 months)</div>
+                        <div style="display:flex;gap:12px;margin-bottom:8px">
+                            <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px;display:inline-block"></span>Revenue</span>
+                            <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fc8181;border-radius:2px;display:inline-block"></span>COGS</span>
+                        </div>
+                        <div class="chart-bars">${chartBars || '<div style="color:var(--text-muted);font-size:12px;margin:auto">No revenue data yet</div>'}</div>
+                        <div style="margin-top:12px">
+                            ${overview.revenueTrend.slice(-1).map(r => `
+                                <div style="font-size:12px;color:var(--text-muted)">Latest month revenue: <strong style="color:var(--navy)">${fmt(r.revenue)}</strong></div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Income Statement -->
+                <div class="section-card">
+                    <div class="section-title"><span class="icon-badge green">📊</span> Income Statement (Current Month)</div>
+                    <div>${incLines}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                    <!-- Balance Sheet -->
+                    <div class="section-card">
+                        <div class="section-title"><span class="icon-badge gold">⚖️</span> Balance Sheet</div>
+                        <div>${bsLines}</div>
+                    </div>
+
+                    <!-- Cash Flow -->
+                    <div class="section-card">
+                        <div class="section-title"><span class="icon-badge blue">💧</span> Today's Cash Flow</div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:12px">
+                                <span>Opening Balance</span><span>${fmt(cashflow.formal.openingBalance)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:12px;color:#48bb78;font-weight:700">
+                                <span>Total Inflows</span><span>+${fmt(cashflow.formal.inflows.total)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:12px;color:#e53e3e;font-weight:700">
+                                <span>Total Outflows</span><span>-${fmt(cashflow.formal.outflows.total)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-weight:800;color:${cashflow.formal.netChange>=0?'#48bb78':'#e53e3e'}">
+                                <span>Net Change</span><span>${cashflow.formal.netChange>=0?'+':''}${fmt(cashflow.formal.netChange)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid var(--border);font-size:13px;font-weight:800;color:var(--navy)">
+                                <span>Closing Balance</span><span>${fmt(cashflow.formal.closingBalance)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Loans -->
+                <div class="section-card">
+                    <div class="section-title"><span class="icon-badge gold">💳</span> Active Loans</div>
+                    <div style="overflow-x:auto">
+                        <table class="data-table">
+                            <thead><tr><th>Lender</th><th>Principal</th><th>Balance</th><th>Next Due</th></tr></thead>
+                            <tbody>${loansHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Audit Flags -->
+                <div class="section-card">
+                    <div class="section-title"><span class="icon-badge red">🔍</span> Audit Flags</div>
+                    <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">
+                        <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fee2e2;color:#c53030">${aud.critical} Critical</span>
+                        <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e">${aud.alerts} Alerts</span>
+                        <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fefce8;color:#713f12">${aud.warnings} Warnings</span>
+                    </div>
+                    ${flagsHtml}
+                </div>
+            `;
+        } catch(e) {
+            document.getElementById('detailPanel').innerHTML = `<div style="padding:40px;text-align:center;color:#e53e3e">Failed to load data: ${e.message}</div>`;
+        }
+    }
+
+    loadSMEList();
+</script>
+</body>
+</html>

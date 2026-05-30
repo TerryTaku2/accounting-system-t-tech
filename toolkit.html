@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeXus - Toolkit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --navy:#1e3a5f;--navy-dark:#152d4a;--navy-light:#2c5282;
+            --gold:#c8963e;--gold-light:#d4a853;
+            --gradient:linear-gradient(135deg,#1e3a5f,#2c5282);
+            --bg:#f0f4f8;--white:#ffffff;--text:#1a202c;--text-light:#4a5568;--text-muted:#718096;
+            --border:#e2e8f0;--shadow:0 4px 16px rgba(30,58,95,.08);--shadow-sm:0 1px 3px rgba(0,0,0,.04);
+            --radius:16px;--sidebar:260px;--header:64px;
+        }
+        body{font-family:'Nunito',-apple-system,sans-serif;background:var(--bg);min-height:100vh}
+        /* SIDEBAR */
+        .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:var(--navy);z-index:100;display:flex;flex-direction:column;overflow-y:auto;transition:transform .3s}
+        .sidebar-logo{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08)}
+        .logo-text{font-family:'Fredoka One',cursive;font-size:28px;background:linear-gradient(135deg,#fff,#c8963e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .logo-sub{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+        .sidebar-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px}
+        .sidebar-nav a{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.7);text-decoration:none;font-size:13.5px;font-weight:600;transition:all .2s}
+        .sidebar-nav a:hover{background:rgba(255,255,255,.08);color:#fff}
+        .sidebar-nav a.active{background:rgba(200,150,62,.2);color:var(--gold-light);border-left:3px solid var(--gold)}
+        .sidebar-nav a svg{width:18px;height:18px;flex-shrink:0;opacity:.8}
+        .sidebar-footer{padding:16px 12px;border-top:1px solid rgba(255,255,255,.08)}
+        .sidebar-footer a{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;font-weight:600;transition:all .2s}
+        .sidebar-footer a:hover{background:rgba(239,68,68,.15);color:#fc8181}
+        /* HEADER */
+        .header{position:fixed;top:0;left:var(--sidebar);right:0;height:var(--header);background:#fff;border-bottom:1px solid var(--border);z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 24px;transition:left .3s}
+        .header-left{display:flex;align-items:center;gap:16px}
+        .menu-toggle{display:none;width:36px;height:36px;border:none;background:transparent;cursor:pointer;border-radius:8px;font-size:20px}
+        .header-title{font-size:16px;font-weight:700;color:var(--text)}
+        .header-right{display:flex;align-items:center;gap:12px}
+        .user-avatar{width:36px;height:36px;background:var(--gradient);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+        /* MAIN */
+        .main{margin-left:var(--sidebar);margin-top:var(--header);padding:24px;min-height:calc(100vh - var(--header))}
+        /* TABS */
+        .tab-nav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;background:#fff;border-radius:14px;padding:6px;border:1px solid var(--border)}
+        .tab-btn{padding:8px 16px;border-radius:10px;border:none;background:transparent;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer;transition:all .2s;white-space:nowrap}
+        .tab-btn.active{background:var(--navy);color:#fff}
+        .tab-btn:hover:not(.active){background:#f0f4f8;color:var(--text)}
+        .tab-pane{display:none}
+        .tab-pane.active{display:block}
+        /* CARDS */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:20px}
+        .stat-card{background:#fff;border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+        .stat-label{font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+        .stat-value{font-size:24px;font-weight:800;color:var(--navy)}
+        .stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+        .section-card{background:#fff;border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+        .section-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .icon-badge{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+        .icon-badge.blue{background:#ebf4ff;color:#3b82f6}
+        .icon-badge.green{background:#f0fff4;color:#48bb78}
+        .icon-badge.gold{background:#fffaf0;color:#c8963e}
+        .icon-badge.purple{background:#faf5ff;color:#8b5cf6}
+        .icon-badge.red{background:#fee2e2;color:#ef4444}
+        .icon-badge.teal{background:#e6fffa;color:#14b8a6}
+        .icon-badge.orange{background:#fff7ed;color:#f97316}
+        /* TABLE */
+        .data-table{width:100%;border-collapse:collapse;font-size:13px}
+        .data-table th{background:#f8fafc;padding:10px 14px;text-align:left;font-weight:700;color:var(--text-light);font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+        .data-table td{padding:10px 14px;border-bottom:1px solid #f0f4f8;color:var(--text)}
+        .data-table tr:last-child td{border-bottom:none}
+        .data-table tr:hover td{background:#f8fafc}
+        /* BUTTONS */
+        .btn{padding:9px 18px;border-radius:25px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;transition:all .2s}
+        .btn-primary{background:var(--gradient);color:#fff}
+        .btn-primary:hover{opacity:.9;transform:scale(.98)}
+        .btn-secondary{background:#f0f4f8;color:var(--text-light)}
+        .btn-secondary:hover{background:#e2e8f0}
+        .btn-danger{background:#fee2e2;color:#e53e3e}
+        .btn-danger:hover{background:#fecaca}
+        .btn-sm{padding:5px 12px;font-size:12px}
+        .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+        /* FORM */
+        .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+        .form-group{display:flex;flex-direction:column;gap:5px}
+        .form-group label{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.03em}
+        .form-group input,.form-group select,.form-group textarea{padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+        .form-group input:focus,.form-group select:focus{border-color:var(--navy)}
+        /* MODAL */
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+        .modal.open{display:flex}
+        .modal-box{background:#fff;border-radius:20px;padding:24px;max-width:520px;width:92%;max-height:85vh;overflow-y:auto}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+        .modal-title{font-size:16px;font-weight:800;color:var(--text)}
+        .modal-close{cursor:pointer;font-size:24px;color:var(--text-muted);background:none;border:none;line-height:1}
+        /* TOAST */
+        .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px);background:var(--navy);color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:600;z-index:2000;transition:transform .35s cubic-bezier(.175,.885,.32,1.275);box-shadow:0 8px 30px rgba(0,0,0,.2);border-left:4px solid var(--gold);max-width:90vw;text-align:center}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+        .toast.success{border-left-color:#48bb78}
+        .toast.error{border-left-color:#fc8181}
+        /* ALERT CHIPS */
+        .alert-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+        .alert-chip.critical{background:#fee2e2;color:#c53030}
+        .alert-chip.alert{background:#fef3c7;color:#92400e}
+        .alert-chip.warning{background:#fefce8;color:#713f12}
+        .alert-chip.ok{background:#f0fff4;color:#276749}
+        /* CREDIT SCORE */
+        .score-circle{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:6px solid;margin:0 auto 12px}
+        .score-number{font-size:32px;font-weight:800}
+        .score-grade{font-size:12px;font-weight:700}
+        .score-bar-wrap{background:#f0f4f8;border-radius:8px;height:8px;margin:4px 0 2px}
+        .score-bar{height:8px;border-radius:8px;transition:width .5s}
+        /* STATEMENT VIEWS */
+        .stmt-section{margin-bottom:16px}
+        .stmt-section-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:6px 0;border-bottom:2px solid var(--border);margin-bottom:8px}
+        .stmt-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:var(--text)}
+        .stmt-row.indent{padding-left:16px;color:var(--text-light)}
+        .stmt-row.total{font-weight:800;border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+        .stmt-row.highlight{font-weight:800;color:var(--navy);background:#f0f7ff;padding:8px 10px;border-radius:8px;margin:4px 0}
+        .stmt-row.big{font-size:16px}
+        .stmt-row.section-header{font-weight:800;color:var(--navy);font-size:14px;margin-top:8px}
+        .simple-card{background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:12px}
+        .simple-line{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:13px}
+        .simple-line:last-child{border-bottom:none}
+        .simple-line.highlight{font-weight:800;color:var(--navy);font-size:14px}
+        .simple-line.big{font-size:16px;font-weight:800;color:var(--navy)}
+        .simple-line.section{font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-size:11px;padding-top:12px}
+        /* BARCODE */
+        .barcode-area{display:flex;gap:8px;margin-bottom:14px;padding:12px;background:#f0f7ff;border-radius:10px;border:1px dashed var(--navy)}
+        .barcode-input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px}
+        /* CAMERA SCANNER */
+        .camera-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;flex-direction:column}
+        .camera-modal.open{display:flex}
+        .camera-box{background:#000;border-radius:16px;overflow:hidden;width:min(380px,90vw);position:relative}
+        #qr-reader{width:100%}
+        #qr-reader video{border-radius:16px}
+        .camera-close{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .camera-label{color:rgba(255,255,255,.8);font-size:13px;font-weight:600;margin-top:14px;text-align:center}
+        /* SMTP FORM */
+        .smtp-status{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px}
+        .smtp-status.ok{background:#f0fff4;color:#276749}
+        .smtp-status.notset{background:#fff5f5;color:#c53030}
+        /* PERIOD SELECTOR */
+        .period-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+        .format-toggle{display:flex;gap:4px;padding:4px;background:#f0f4f8;border-radius:10px}
+        .format-btn{padding:6px 14px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--text-muted)}
+        .format-btn.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+        /* OVERLAY */
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
+        .sidebar-overlay.active{display:block}
+        @media(max-width:768px){
+            .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+            .header{left:0}.main{margin-left:0;padding:16px}.menu-toggle{display:flex;align-items:center;justify-content:center}
+            .stats-grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="toast" id="toast"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-text">NeXus</div>
+        <div class="logo-sub">SME Community Platform</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="../dashboard/dashboard.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Dashboard
+        </a>
+        <a href="../Pillar 1- Networking/network_hub.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+            Network
+        </a>
+        <a href="../finance/finance.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            Finance
+        </a>
+        <a href="../Search/search.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search
+        </a>
+        <a href="../Pillar 2- Government/government.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Gov
+        </a>
+        <a href="toolkit.html" class="active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+            Toolkit
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="#" onclick="handleLogout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+        </a>
+    </div>
+</aside>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-left">
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <span class="header-title">Business Toolkit</span>
+    </div>
+    <div class="header-right">
+        <a href="creditor_dashboard.html" style="text-decoration:none">
+            <button class="btn btn-secondary btn-sm">Creditor View</button>
+        </a>
+        <div class="user-avatar" id="userAvatar">N</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+    <!-- TAB NAV -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+        <button class="tab-btn" onclick="switchTab('inventory')">Inventory</button>
+        <button class="tab-btn" onclick="switchTab('loans')">Loans</button>
+        <button class="tab-btn" onclick="switchTab('bookkeeping')">Bookkeeping</button>
+        <button class="tab-btn" onclick="switchTab('statements')">Statements</button>
+        <button class="tab-btn" onclick="switchTab('calculator')">Calculator</button>
+        <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+    </div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="tab-pane active" id="tab-overview">
+        <div class="stats-grid" id="overviewStats"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <!-- Credit Score -->
+            <div class="section-card" style="text-align:center">
+                <div class="section-title" style="justify-content:center">
+                    <span class="icon-badge purple">⭐</span> Credit Score
+                </div>
+                <div class="score-circle" id="scoreCircle">
+                    <span class="score-number" id="scoreNumber">—</span>
+                    <span class="score-grade" id="scoreGrade"></span>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px" id="scoreSubtext"></div>
+                <div id="scoreFactors"></div>
+            </div>
+
+            <!-- Audit Status -->
+            <div class="section-card">
+                <div class="section-title">
+                    <span class="icon-badge red">🔍</span> Audit Status
+                </div>
+                <div id="auditSummary" style="text-align:center;color:var(--text-muted);padding:20px 0">Loading...</div>
+                <div id="auditFlags"></div>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge orange">🔔</span> Active Alerts</div>
+            <div id="alertsList"><p style="color:var(--text-muted);font-size:13px">Loading alerts...</p></div>
+        </div>
+    </div>
+
+    <!-- ===== INVENTORY ===== -->
+    <div class="tab-pane" id="tab-inventory">
+        <div class="stats-grid" id="inventoryStats"></div>
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge blue">📦</span> Products</div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="openModal('addProduct')">+ Add Product</button>
+                <button class="btn btn-secondary" onclick="loadInventory()">Refresh</button>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="data-table" id="inventoryTable">
+                    <thead><tr><th>Product</th><th>Category</th><th>Unit</th><th>Stock</th><th>Reorder At</th><th>Cost Price</th><th>Sell Price</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="inventoryBody"><tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== LOANS ===== -->
+    <div class="tab-pane" id="tab-loans">
+        <div class="stats-grid" id="loanStats"></div>
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge gold">💳</span> My Loans</div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="openModal('addLoan')">+ Add Loan</button>
+                <button class="btn btn-secondary" onclick="loadLoans()">Refresh</button>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="data-table">
+                    <thead><tr><th>Lender</th><th>Type</th><th>Principal</th><th>Paid</th><th>Balance</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="loansBody"><tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== BOOKKEEPING ===== -->
+    <div class="tab-pane" id="tab-bookkeeping">
+        <!-- Barcode POS Area -->
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge teal">📱</span> Quick Entry — Barcode / POS</div>
+            <div class="barcode-area">
+                <input type="text" class="barcode-input" id="barcodeInput" placeholder="Type product name or barcode number + Enter..." onkeydown="handleBarcode(event)">
+                <button class="btn btn-secondary" onclick="lookupBarcode()">Look up</button>
+                <button class="btn btn-primary" onclick="openCameraScanner('barcodeInput', lookupBarcode)" title="Scan with camera">
+                    📷 Scan
+                </button>
+            </div>
+            <div id="barcodeResult" style="display:none;background:#f0fff4;border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid #c6f6d5"></div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="tab-nav" style="margin-bottom:16px">
+            <button class="tab-btn active" onclick="switchSubTab('sales')">Sales</button>
+            <button class="tab-btn" onclick="switchSubTab('expenses')">Expenses</button>
+            <button class="tab-btn" onclick="switchSubTab('purchases')">Purchases</button>
+        </div>
+
+        <!-- Sales -->
+        <div id="subtab-sales" class="tab-pane active">
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge green">💰</span> Record Sale</div>
+                <div class="form-grid" id="saleForm">
+                    <div class="form-group"><label>Product</label><input type="text" id="sale_product" placeholder="Product name"></div>
+                    <div class="form-group"><label>Quantity</label><input type="number" id="sale_qty" placeholder="1" min="0.01" step="0.01"></div>
+                    <div class="form-group"><label>Unit Price ($)</label><input type="number" id="sale_price" placeholder="0.00" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="sale_cost" placeholder="0.00" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Date</label><input type="date" id="sale_date"></div>
+                </div>
+                <button class="btn btn-primary" onclick="recordSale()">Record Sale</button>
+            </div>
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge green">📋</span> Sales Log</div>
+                <div style="overflow-x:auto">
+                    <table class="data-table">
+                        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Revenue</th><th>Profit</th></tr></thead>
+                        <tbody id="salesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div id="subtab-expenses" class="tab-pane">
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge red">💸</span> Record Expense</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Category</label>
+                        <select id="exp_category">
+                            <option>Rent</option><option>Utilities</option><option>Salaries</option>
+                            <option>Transport</option><option>Marketing</option><option>Inventory</option><option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Description</label><input type="text" id="exp_desc" placeholder="Optional"></div>
+                    <div class="form-group"><label>Amount ($)</label><input type="number" id="exp_amount" placeholder="0.00" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Date</label><input type="date" id="exp_date"></div>
+                </div>
+                <button class="btn btn-primary" onclick="recordExpense()">Record Expense</button>
+            </div>
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge red">📋</span> Expense Log</div>
+                <div style="overflow-x:auto">
+                    <table class="data-table">
+                        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead>
+                        <tbody id="expensesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchases -->
+        <div id="subtab-purchases" class="tab-pane">
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge purple">🛒</span> Record Purchase (Stock Buy)</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Description</label><input type="text" id="pur_desc" placeholder="What did you buy?"></div>
+                    <div class="form-group"><label>Supplier</label><input type="text" id="pur_supplier" placeholder="Supplier name"></div>
+                    <div class="form-group"><label>Amount ($)</label><input type="number" id="pur_amount" placeholder="0.00" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Date</label><input type="date" id="pur_date"></div>
+                </div>
+                <button class="btn btn-primary" onclick="recordPurchase()">Record Purchase</button>
+            </div>
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge purple">📋</span> Purchase Log</div>
+                <div style="overflow-x:auto">
+                    <table class="data-table">
+                        <thead><tr><th>Date</th><th>Description</th><th>Supplier</th><th>Amount</th></tr></thead>
+                        <tbody id="purchasesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== STATEMENTS ===== -->
+    <div class="tab-pane" id="tab-statements">
+        <div class="period-bar">
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+                <label style="margin:0;white-space:nowrap;font-size:12px;font-weight:700;color:var(--text-muted)">PERIOD</label>
+                <input type="month" id="stmtPeriod" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif">
+                <input type="date" id="stmtDate" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif">
+            </div>
+            <div class="format-toggle">
+                <button class="format-btn active" onclick="setFormat('formal')">Formal</button>
+                <button class="format-btn" onclick="setFormat('simple')">Simple</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="loadStatements()">Generate</button>
+            <button class="btn btn-secondary btn-sm" onclick="printStatements()">Print</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px" id="statementsGrid">
+            <!-- Generated dynamically -->
+        </div>
+    </div>
+
+    <!-- ===== CALCULATOR ===== -->
+    <div class="tab-pane" id="tab-calculator">
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:20px">
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge gold">🧮</span> Loan Calculator</div>
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Principal Amount ($)</label>
+                    <input type="number" id="calc_principal" placeholder="e.g. 10000" min="1" step="100">
+                </div>
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Annual Interest Rate (%)</label>
+                    <input type="number" id="calc_rate" placeholder="e.g. 15" min="0" step="0.5">
+                </div>
+                <div class="form-group" style="margin-bottom:20px">
+                    <label>Term (months)</label>
+                    <input type="number" id="calc_term" placeholder="e.g. 12" min="1" step="1">
+                </div>
+                <button class="btn btn-primary" style="width:100%" onclick="calculateLoan()">Calculate</button>
+
+                <div id="calcSummary" style="margin-top:20px;display:none">
+                    <div style="background:#f0f7ff;border-radius:12px;padding:16px">
+                        <div class="stmt-row highlight"><span>Monthly Payment</span><span id="calcMonthly">—</span></div>
+                        <div class="stmt-row"><span>Total Interest</span><span id="calcInterest">—</span></div>
+                        <div class="stmt-row"><span>Total Payment</span><span id="calcTotal">—</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title"><span class="icon-badge blue">📅</span> Repayment Schedule</div>
+                <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+                    <table class="data-table">
+                        <thead><tr><th>Month</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+                        <tbody id="calcSchedule"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Enter values and click Calculate</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div class="tab-pane" id="tab-settings">
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge teal">🔔</span> Email Notifications</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Notification Email</label>
+                    <input type="email" id="notif_email" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Days Before Loan Due</label>
+                    <input type="number" id="notif_loan_days" placeholder="3" min="1" max="30">
+                </div>
+            </div>
+            <div style="display:flex;gap:24px;margin:16px 0">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px">
+                    <input type="checkbox" id="notif_inventory" style="width:16px;height:16px"> Inventory low-stock alerts
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px">
+                    <input type="checkbox" id="notif_loans" style="width:16px;height:16px"> Loan payment reminders
+                </label>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveNotifSettings()">Save Notification Settings</button>
+            </div>
+        </div>
+
+        <!-- SMTP Email Setup -->
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge blue">📧</span> Email Setup (SMTP)</div>
+            <div id="smtpStatus" class="smtp-status notset">⚠ Not configured — emails will not send</div>
+            <div class="form-grid">
+                <div class="form-group"><label>SMTP Host</label><input type="text" id="smtp_host" placeholder="smtp.gmail.com"></div>
+                <div class="form-group"><label>SMTP Port</label><input type="number" id="smtp_port" placeholder="587"></div>
+                <div class="form-group"><label>Email Address (Username)</label><input type="email" id="smtp_user" placeholder="your@gmail.com"></div>
+                <div class="form-group"><label>App Password</label><input type="password" id="smtp_pass" placeholder="••••••••••••"></div>
+            </div>
+            <div style="background:#f0f7ff;border-radius:10px;padding:12px;font-size:12px;color:#2c5282;margin:12px 0">
+                <strong>Gmail setup:</strong> Go to your Google Account → Security → 2-Step Verification → App passwords.
+                Generate a password for "Mail" and paste it above. Your normal Gmail password will not work here.
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveSmtpSettings()">Save & Apply</button>
+                <button class="btn btn-secondary" onclick="testEmail()">Send Test Email</button>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title"><span class="icon-badge purple">📊</span> Credit Score Breakdown</div>
+            <div id="fullScoreBreakdown"><p style="color:var(--text-muted);font-size:13px">Loading...</p></div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Add Product -->
+<div class="modal" id="modal-addProduct">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">Add Product</span>
+            <button class="modal-close" onclick="closeModal('addProduct')">&times;</button>
+        </div>
+        <div class="form-grid">
+            <div class="form-group"><label>Product Name*</label><input type="text" id="p_name" placeholder="e.g. Tomatoes"></div>
+            <div class="form-group"><label>Category</label><input type="text" id="p_cat" placeholder="e.g. Vegetables"></div>
+            <div class="form-group"><label>Unit</label><input type="text" id="p_unit" placeholder="e.g. kg, pcs"></div>
+            <div class="form-group"><label>Current Stock</label><input type="number" id="p_stock" placeholder="0" min="0"></div>
+            <div class="form-group"><label>Reorder Level (alert threshold)</label><input type="number" id="p_reorder" placeholder="0" min="0"></div>
+            <div class="form-group"><label>Cost Price ($)</label><input type="number" id="p_cost" placeholder="0.00" min="0" step="0.01"></div>
+            <div class="form-group"><label>Selling Price ($)</label><input type="number" id="p_sell" placeholder="0.00" min="0" step="0.01"></div>
+            <div class="form-group" style="grid-column:1/-1">
+                <label>Barcode* <span style="color:#e53e3e;font-size:11px;font-weight:600;text-transform:none">(required — scan the product barcode)</span></label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="text" id="p_barcode" placeholder="Scan barcode with camera or type manually" style="flex:1;border-color:var(--navy)" required>
+                    <button type="button" class="btn btn-primary" onclick="openCameraScanner('p_barcode')" title="Scan with camera">📷 Scan Barcode</button>
+                </div>
+            </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+            <button class="btn btn-primary" onclick="saveProduct()">Add Product</button>
+            <button class="btn btn-secondary" onclick="closeModal('addProduct')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product -->
+<div class="modal" id="modal-editProduct">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">Edit Product</span>
+            <button class="modal-close" onclick="closeModal('editProduct')">&times;</button>
+        </div>
+        <input type="hidden" id="ep_id">
+        <div class="form-grid">
+            <div class="form-group"><label>Product Name</label><input type="text" id="ep_name"></div>
+            <div class="form-group"><label>Category</label><input type="text" id="ep_cat"></div>
+            <div class="form-group"><label>Unit</label><input type="text" id="ep_unit"></div>
+            <div class="form-group"><label>Current Stock</label><input type="number" id="ep_stock" min="0"></div>
+            <div class="form-group"><label>Reorder Level</label><input type="number" id="ep_reorder" min="0"></div>
+            <div class="form-group"><label>Cost Price ($)</label><input type="number" id="ep_cost" min="0" step="0.01"></div>
+            <div class="form-group"><label>Selling Price ($)</label><input type="number" id="ep_sell" min="0" step="0.01"></div>
+            <div class="form-group" style="grid-column:1/-1">
+                <label>Barcode* <span style="color:#e53e3e;font-size:11px;font-weight:600;text-transform:none">(required)</span></label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="text" id="ep_barcode" placeholder="Scan barcode with camera or type manually" style="flex:1;border-color:var(--navy)" required>
+                    <button type="button" class="btn btn-primary" onclick="openCameraScanner('ep_barcode')" title="Scan with camera">📷 Scan Barcode</button>
+                </div>
+            </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+            <button class="btn btn-primary" onclick="updateProduct()">Save Changes</button>
+            <button class="btn btn-secondary" onclick="closeModal('editProduct')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Loan -->
+<div class="modal" id="modal-addLoan">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">Add Loan</span>
+            <button class="modal-close" onclick="closeModal('addLoan')">&times;</button>
+        </div>
+        <div class="form-grid">
+            <div class="form-group"><label>Lender Name*</label><input type="text" id="l_lender" placeholder="e.g. CBZ Bank"></div>
+            <div class="form-group"><label>Loan Type</label>
+                <select id="l_type"><option value="business">Business</option><option value="personal">Personal</option><option value="microfinance">Microfinance</option><option value="p2p">P2P</option></select>
+            </div>
+            <div class="form-group"><label>Principal ($)*</label><input type="number" id="l_principal" placeholder="0.00" min="0.01" step="0.01"></div>
+            <div class="form-group"><label>Annual Interest Rate (%)</label><input type="number" id="l_rate" placeholder="0" min="0" step="0.1"></div>
+            <div class="form-group"><label>Term (months)*</label><input type="number" id="l_term" placeholder="12" min="1"></div>
+            <div class="form-group"><label>Start Date</label><input type="date" id="l_start"></div>
+        </div>
+        <div class="form-group" style="margin-top:14px"><label>Notes</label><input type="text" id="l_notes" placeholder="Optional"></div>
+        <div class="btn-row" style="margin-top:16px">
+            <button class="btn btn-primary" onclick="saveLoan()">Add Loan</button>
+            <button class="btn btn-secondary" onclick="closeModal('addLoan')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment -->
+<div class="modal" id="modal-payment">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">Record Payment</span>
+            <button class="modal-close" onclick="closeModal('payment')">&times;</button>
+        </div>
+        <input type="hidden" id="pay_loan_id">
+        <div id="pay_loan_info" style="background:#f0f7ff;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount ($)*</label><input type="number" id="pay_amount" placeholder="0.00" min="0.01" step="0.01"></div>
+            <div class="form-group"><label>Payment Date</label><input type="date" id="pay_date"></div>
+            <div class="form-group"><label>Reference</label><input type="text" id="pay_ref" placeholder="Optional"></div>
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+            <button class="btn btn-primary" onclick="submitPayment()">Record Payment</button>
+            <button class="btn btn-secondary" onclick="closeModal('payment')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loan Schedule -->
+<div class="modal" id="modal-schedule">
+    <div class="modal-box" style="max-width:680px">
+        <div class="modal-header">
+            <span class="modal-title" id="scheduleTitle">Payment Schedule</span>
+            <button class="modal-close" onclick="closeModal('schedule')">&times;</button>
+        </div>
+        <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+            <table class="data-table">
+                <thead><tr><th>#</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+                <tbody id="scheduleBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- CAMERA SCANNER MODAL -->
+<div class="camera-modal" id="cameraModal">
+    <div class="camera-box">
+        <button class="camera-close" onclick="closeCameraScanner()">✕</button>
+        <div id="qr-reader"></div>
+    </div>
+    <div class="camera-label">Point camera at a barcode or QR code</div>
+    <button class="btn btn-secondary" style="margin-top:12px" onclick="closeCameraScanner()">Cancel</button>
+</div>
+
+<script src="../static/config.js"></script>
+<script>
+    const API = NEXUS_CONFIG.apiUrl;
+    let userId = null;
+    let userData = null;
+    let currentFormat = 'formal';
+
+    // ===== INIT =====
+    try {
+        const str = localStorage.getItem('nexus_user');
+        if (str) {
+            userData = JSON.parse(str);
+            userId = userData.id || userData.ID;
+            document.getElementById('userAvatar').textContent = (userData.business_name || userData.owner_name || 'N').charAt(0).toUpperCase();
+        }
+    } catch(e) {}
+
+    if (!userId) {
+        showToast('Please log in first', 'error');
+    }
+
+    // Set today defaults
+    document.querySelectorAll('input[type=date]').forEach(el => el.value = new Date().toISOString().split('T')[0]);
+    const now = new Date();
+    document.getElementById('stmtPeriod').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('stmtDate').value = now.toISOString().split('T')[0];
+
+    // ===== SIDEBAR =====
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('active'); }
+    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('active'); }
+    function handleLogout() { localStorage.clear(); window.location.href = '../login/login.html'; }
+
+    // ===== TOAST =====
+    function showToast(msg, type = '') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast ' + type + ' show';
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    // ===== TABS =====
+    function switchTab(name) {
+        document.querySelectorAll('.tab-btn').forEach((b, i) => {
+            const tabs = ['overview','inventory','loans','bookkeeping','statements','calculator','settings'];
+            b.classList.toggle('active', tabs[i] === name);
+        });
+        document.querySelectorAll('.tab-pane[id^="tab-"]').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        if (name === 'overview') loadOverview();
+        if (name === 'inventory') loadInventory();
+        if (name === 'loans') loadLoans();
+        if (name === 'bookkeeping') loadBookkeeping();
+        if (name === 'settings') loadSettings();
+    }
+
+    function switchSubTab(name) {
+        document.querySelectorAll('#tab-bookkeeping .tab-btn').forEach((b, i) => {
+            b.classList.toggle('active', ['sales','expenses','purchases'][i] === name);
+        });
+        document.querySelectorAll('.tab-pane[id^="subtab-"]').forEach(p => p.classList.remove('active'));
+        document.getElementById('subtab-' + name).classList.add('active');
+        if (name === 'sales') loadSales();
+        if (name === 'expenses') loadExpenses();
+        if (name === 'purchases') loadPurchases();
+    }
+
+    // ===== MODAL =====
+    function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
+    function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
+    window.addEventListener('click', e => { if (e.target.classList.contains('modal')) e.target.classList.remove('open'); });
+
+    // ===== API HELPERS =====
+    async function apiFetch(path, opts = {}) {
+        const res = await fetch(API + path, { headers: {'Content-Type': 'application/json'}, ...opts });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
+        return res.json();
+    }
+
+    const fmt = n => '$' + (n || 0).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // ===== OVERVIEW =====
+    async function loadOverview() {
+        if (!userId) return;
+        try {
+            const [inv, loans, fin, score, audit] = await Promise.all([
+                apiFetch(`/api/inventory/summary?user_id=${userId}`),
+                apiFetch(`/api/loans/summary?user_id=${userId}`),
+                apiFetch(`/api/finance/dashboard?user_id=${userId}`),
+                apiFetch(`/api/credit-score/${userId}`),
+                apiFetch(`/api/audit/${userId}`)
+            ]);
+
+            document.getElementById('overviewStats').innerHTML = `
+                <div class="stat-card"><div class="stat-label">Monthly Revenue</div><div class="stat-value">${fmt(fin.revenue)}</div><div class="stat-sub">Net profit: ${fmt(fin.netProfit)}</div></div>
+                <div class="stat-card"><div class="stat-label">Profit Margin</div><div class="stat-value">${fin.margin}%</div><div class="stat-sub">Gross profit: ${fmt(fin.grossProfit)}</div></div>
+                <div class="stat-card"><div class="stat-label">Inventory Value</div><div class="stat-value">${fmt(inv.stockValue)}</div><div class="stat-sub">${inv.itemCount} products tracked</div></div>
+                <div class="stat-card"><div class="stat-label">Outstanding Loans</div><div class="stat-value" style="color:${loans.outstanding>0?'#e53e3e':'#48bb78'}">${fmt(loans.outstanding)}</div><div class="stat-sub">Total repaid: ${fmt(loans.paid)}</div></div>
+            `;
+
+            // Credit score
+            const circle = document.getElementById('scoreCircle');
+            circle.style.borderColor = score.color;
+            document.getElementById('scoreNumber').textContent = score.score;
+            document.getElementById('scoreNumber').style.color = score.color;
+            document.getElementById('scoreGrade').textContent = score.grade;
+            document.getElementById('scoreGrade').style.color = score.color;
+            document.getElementById('scoreSubtext').textContent = `Score range: ${score.minScore} – ${score.maxScore}`;
+
+            const factorHtml = Object.entries(score.factors).map(([k, v]) => {
+                const pct = Math.round(v.score / v.max * 100);
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                return `<div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px"><span>${label}</span><span>${v.score}/${v.max}</span></div>
+                    <div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%;background:${score.color}"></div></div>
+                </div>`;
+            }).join('');
+            document.getElementById('scoreFactors').innerHTML = factorHtml;
+
+            // Audit
+            const aud = audit.summary;
+            document.getElementById('auditSummary').innerHTML = `
+                <div class="alert-chip ${aud.risk_level === 'Clean' ? 'ok' : aud.risk_level.includes('High') ? 'critical' : aud.risk_level.includes('Medium') ? 'alert' : 'warning'}" style="font-size:14px;padding:8px 16px;margin-bottom:12px">${aud.risk_level}</div>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:12px">
+                    <span style="color:#c53030">🔴 ${aud.critical} Critical</span>
+                    <span style="color:#92400e">🟡 ${aud.alerts} Alerts</span>
+                    <span style="color:#713f12">⚪ ${aud.warnings} Warnings</span>
+                </div>`;
+
+            const flagsHtml = audit.flags.length === 0
+                ? '<p style="color:#48bb78;font-size:13px;text-align:center">No issues detected. Your books look clean!</p>'
+                : audit.flags.map(f => `
+                    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid ${f.severity==='critical'?'#e53e3e':f.severity==='alert'?'#f6ad55':'#ecc94b'}">
+                        <div style="font-size:11px;font-weight:800;color:var(--text-muted);margin-bottom:3px">${f.category.toUpperCase()}</div>
+                        <div style="font-size:13px;color:var(--text)">${f.message}</div>
+                    </div>`).join('');
+            document.getElementById('auditFlags').innerHTML = flagsHtml;
+
+            // Alerts
+            const [stockAlerts, overdueLoans] = await Promise.all([
+                apiFetch(`/api/inventory/alerts?user_id=${userId}`),
+                apiFetch(`/api/loans/overdue?user_id=${userId}`)
+            ]);
+            let alertsHtml = '';
+            stockAlerts.forEach(a => {
+                alertsHtml += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff7ed;border-radius:8px;margin-bottom:8px;border-left:3px solid #f97316">
+                    <span>📦</span><span style="font-size:13px"><strong>${a.name}</strong> is low on stock — ${a.current_stock} left (reorder at ${a.reorder_level})</span>
+                </div>`;
+            });
+            overdueLoans.forEach(l => {
+                alertsHtml += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fee2e2;border-radius:8px;margin-bottom:8px;border-left:3px solid #e53e3e">
+                    <span>💳</span><span style="font-size:13px"><strong>${l.lenderName}</strong> loan is ${l.daysOverdue} days overdue — Balance: ${fmt(l.overdueAmount)}</span>
+                </div>`;
+            });
+            if (!alertsHtml) alertsHtml = '<p style="color:#48bb78;font-size:13px">No active alerts. Everything looks good!</p>';
+            document.getElementById('alertsList').innerHTML = alertsHtml;
+
+        } catch(e) { showToast('Failed to load overview: ' + e.message, 'error'); }
+    }
+
+    // ===== INVENTORY =====
+    async function loadInventory() {
+        if (!userId) return;
+        try {
+            const [summary, products] = await Promise.all([
+                apiFetch(`/api/inventory/summary?user_id=${userId}`),
+                apiFetch(`/api/inventory/products?user_id=${userId}`)
+            ]);
+            document.getElementById('inventoryStats').innerHTML = `
+                <div class="stat-card"><div class="stat-label">Total Products</div><div class="stat-value">${summary.itemCount}</div></div>
+                <div class="stat-card"><div class="stat-label">Stock Value (Cost)</div><div class="stat-value">${fmt(summary.stockValue)}</div></div>
+                <div class="stat-card"><div class="stat-label">Potential Revenue</div><div class="stat-value">${fmt(summary.potentialValue)}</div></div>
+            `;
+            const body = document.getElementById('inventoryBody');
+            if (!products.length) { body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">No products yet. Add your first product.</td></tr>'; return; }
+            body.innerHTML = products.map(p => {
+                const low = p.current_stock <= p.reorder_level;
+                return `<tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.category || '—'}</td>
+                    <td>${p.unit || '—'}</td>
+                    <td style="font-weight:700;color:${low?'#e53e3e':'inherit'}">${p.current_stock}</td>
+                    <td>${p.reorder_level}</td>
+                    <td>${fmt(p.cost_price)}</td>
+                    <td>${fmt(p.selling_price)}</td>
+                    <td><span class="alert-chip ${low?'critical':'ok'}">${low?'Low Stock':'OK'}</span></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editProduct(${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">Del</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch(e) { showToast('Failed to load inventory: ' + e.message, 'error'); }
+    }
+
+    async function saveProduct() {
+        const name = document.getElementById('p_name').value.trim();
+        const barcode = document.getElementById('p_barcode').value.trim();
+        if (!name) { showToast('Product name is required', 'error'); return; }
+        if (!barcode) { showToast('Barcode is required — use 📷 Scan Barcode to scan the product', 'error'); document.getElementById('p_barcode').focus(); return; }
+        try {
+            await apiFetch(`/api/inventory/products?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name, category: document.getElementById('p_cat').value,
+                    unit: document.getElementById('p_unit').value,
+                    current_stock: +document.getElementById('p_stock').value || 0,
+                    reorder_level: +document.getElementById('p_reorder').value || 0,
+                    cost_price: +document.getElementById('p_cost').value || 0,
+                    selling_price: +document.getElementById('p_sell').value || 0,
+                    barcode
+                })
+            });
+            closeModal('addProduct');
+            ['p_name','p_cat','p_unit','p_stock','p_reorder','p_cost','p_sell','p_barcode'].forEach(id => document.getElementById(id).value = '');
+            loadInventory();
+            showToast('Product added!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    function editProduct(p) {
+        document.getElementById('ep_id').value = p.id;
+        document.getElementById('ep_name').value = p.name;
+        document.getElementById('ep_cat').value = p.category || '';
+        document.getElementById('ep_unit').value = p.unit || '';
+        document.getElementById('ep_stock').value = p.current_stock;
+        document.getElementById('ep_reorder').value = p.reorder_level;
+        document.getElementById('ep_cost').value = p.cost_price;
+        document.getElementById('ep_sell').value = p.selling_price;
+        document.getElementById('ep_barcode').value = p.barcode || '';
+        openModal('editProduct');
+    }
+
+    async function updateProduct() {
+        const id = document.getElementById('ep_id').value;
+        const barcode = document.getElementById('ep_barcode').value.trim();
+        if (!barcode) { showToast('Barcode is required — use 📷 Scan Barcode to scan the product', 'error'); document.getElementById('ep_barcode').focus(); return; }
+        try {
+            await apiFetch(`/api/inventory/products/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    name: document.getElementById('ep_name').value,
+                    category: document.getElementById('ep_cat').value,
+                    unit: document.getElementById('ep_unit').value,
+                    current_stock: +document.getElementById('ep_stock').value,
+                    reorder_level: +document.getElementById('ep_reorder').value,
+                    cost_price: +document.getElementById('ep_cost').value,
+                    selling_price: +document.getElementById('ep_sell').value,
+                    barcode
+                })
+            });
+            closeModal('editProduct');
+            loadInventory();
+            showToast('Product updated!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function deleteProduct(id) {
+        if (!confirm('Delete this product?')) return;
+        try {
+            await apiFetch(`/api/inventory/products/${id}`, { method: 'DELETE' });
+            loadInventory();
+            showToast('Product deleted', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ===== LOANS =====
+    async function loadLoans() {
+        if (!userId) return;
+        try {
+            const [summary, loans] = await Promise.all([
+                apiFetch(`/api/loans/summary?user_id=${userId}`),
+                apiFetch(`/api/loans?user_id=${userId}`)
+            ]);
+            document.getElementById('loanStats').innerHTML = `
+                <div class="stat-card"><div class="stat-label">Outstanding Debt</div><div class="stat-value" style="color:#e53e3e">${fmt(summary.outstanding)}</div></div>
+                <div class="stat-card"><div class="stat-label">Total Repaid</div><div class="stat-value" style="color:#48bb78">${fmt(summary.paid)}</div></div>
+                <div class="stat-card"><div class="stat-label">Active Loans</div><div class="stat-value">${loans.filter(l=>l.status==='active').length}</div></div>
+            `;
+            const today = new Date().toISOString().split('T')[0];
+            const body = document.getElementById('loansBody');
+            if (!loans.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">No loans recorded yet.</td></tr>'; return; }
+            body.innerHTML = loans.map(l => {
+                const balance = l.principal - l.amount_paid;
+                const overdue = l.status === 'active' && l.next_due_date < today;
+                return `<tr>
+                    <td><strong>${l.lender_name}</strong></td>
+                    <td><span style="text-transform:capitalize">${l.loan_type}</span></td>
+                    <td>${fmt(l.principal)}</td>
+                    <td>${fmt(l.amount_paid)}</td>
+                    <td style="font-weight:700">${fmt(balance)}</td>
+                    <td style="color:${overdue?'#e53e3e':'inherit'}">${l.next_due_date || '—'}</td>
+                    <td><span class="alert-chip ${l.status==='active'?(overdue?'critical':'ok'):l.status==='completed'?'ok':'critical'}">${l.status}</span></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openPaymentModal(${l.id},'${l.lender_name}',${balance})">Pay</button>
+                        <button class="btn btn-secondary btn-sm" onclick="viewSchedule(${l.id},'${l.lender_name}')">Schedule</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch(e) { showToast('Failed to load loans: ' + e.message, 'error'); }
+    }
+
+    async function saveLoan() {
+        const lender = document.getElementById('l_lender').value.trim();
+        const principal = +document.getElementById('l_principal').value;
+        const term = +document.getElementById('l_term').value;
+        if (!lender || !principal || !term) { showToast('Lender, principal and term are required', 'error'); return; }
+        try {
+            await apiFetch(`/api/loans?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    lender_name: lender, loan_type: document.getElementById('l_type').value,
+                    principal, interest_rate: +document.getElementById('l_rate').value || 0,
+                    term_months: term, start_date: document.getElementById('l_start').value || new Date().toISOString().split('T')[0],
+                    notes: document.getElementById('l_notes').value
+                })
+            });
+            closeModal('addLoan');
+            loadLoans();
+            showToast('Loan added!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    function openPaymentModal(loanId, lenderName, balance) {
+        document.getElementById('pay_loan_id').value = loanId;
+        document.getElementById('pay_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('pay_loan_info').innerHTML = `<strong>${lenderName}</strong> — Current Balance: <strong>${fmt(balance)}</strong>`;
+        openModal('payment');
+    }
+
+    async function submitPayment() {
+        const loanId = document.getElementById('pay_loan_id').value;
+        const amount = +document.getElementById('pay_amount').value;
+        if (!amount) { showToast('Payment amount required', 'error'); return; }
+        try {
+            await apiFetch(`/api/loans/${loanId}/payments`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    amount, payment_date: document.getElementById('pay_date').value,
+                    reference: document.getElementById('pay_ref').value
+                })
+            });
+            closeModal('payment');
+            loadLoans();
+            showToast('Payment recorded!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function viewSchedule(loanId, lenderName) {
+        try {
+            const data = await apiFetch(`/api/loans/${loanId}`);
+            document.getElementById('scheduleTitle').textContent = `Payment Schedule — ${lenderName}`;
+            document.getElementById('scheduleBody').innerHTML = data.paymentSchedule.map(s => `
+                <tr><td>${s.month}</td><td>${fmt(s.payment)}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${fmt(s.remainingBalance)}</td></tr>
+            `).join('');
+            openModal('schedule');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ===== BOOKKEEPING =====
+    async function loadBookkeeping() { loadSales(); }
+
+    async function loadSales() {
+        if (!userId) return;
+        try {
+            const sales = await apiFetch(`/api/finance/sales?user_id=${userId}`);
+            const body = document.getElementById('salesBody');
+            if (!sales.length) { body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No sales recorded yet.</td></tr>'; return; }
+            body.innerHTML = sales.slice(0, 50).map(s => `<tr>
+                <td>${s.date}</td><td>${s.product_name}</td><td>${s.quantity}</td>
+                <td>${fmt(s.unit_price)}</td><td>${fmt(s.total_revenue)}</td>
+                <td style="color:${s.profit>=0?'#48bb78':'#e53e3e'}">${fmt(s.profit)}</td>
+            </tr>`).join('');
+        } catch(e) {}
+    }
+
+    async function recordSale() {
+        const product = document.getElementById('sale_product').value.trim();
+        const qty = +document.getElementById('sale_qty').value;
+        const price = +document.getElementById('sale_price').value;
+        if (!product || !qty || !price) { showToast('Product, quantity and price are required', 'error'); return; }
+        try {
+            const result = await apiFetch(`/api/finance/sales?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    product_name: product, quantity: qty, unit_price: price,
+                    unit_cost: +document.getElementById('sale_cost').value || 0,
+                    date: document.getElementById('sale_date').value
+                })
+            });
+            ['sale_product','sale_qty','sale_price','sale_cost'].forEach(id => document.getElementById(id).value = '');
+            loadSales();
+            if (result.inventory_deducted) {
+                const msg = result.low_stock_alert
+                    ? `Sale recorded! ⚠ ${product} is now low on stock (${result.new_stock} left)`
+                    : `Sale recorded! Stock updated: ${product} now has ${result.new_stock} units`;
+                showToast(msg, result.low_stock_alert ? '' : 'success');
+            } else {
+                showToast('Sale recorded! (Product not found in inventory — stock not updated)', 'success');
+            }
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function loadExpenses() {
+        if (!userId) return;
+        try {
+            const expenses = await apiFetch(`/api/finance/expenses?user_id=${userId}`);
+            const body = document.getElementById('expensesBody');
+            if (!expenses.length) { body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No expenses recorded yet.</td></tr>'; return; }
+            body.innerHTML = expenses.slice(0, 50).map(e => `<tr>
+                <td>${e.date}</td><td>${e.category}</td><td>${e.description || '—'}</td><td style="font-weight:700">${fmt(e.amount)}</td>
+            </tr>`).join('');
+        } catch(e) {}
+    }
+
+    async function recordExpense() {
+        const amount = +document.getElementById('exp_amount').value;
+        if (!amount) { showToast('Amount is required', 'error'); return; }
+        try {
+            await apiFetch(`/api/finance/expenses?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    category: document.getElementById('exp_category').value,
+                    description: document.getElementById('exp_desc').value,
+                    amount, date: document.getElementById('exp_date').value
+                })
+            });
+            document.getElementById('exp_amount').value = '';
+            document.getElementById('exp_desc').value = '';
+            loadExpenses();
+            showToast('Expense recorded!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function loadPurchases() {
+        if (!userId) return;
+        try {
+            const entries = await apiFetch(`/api/bookkeeping/entries?user_id=${userId}&type=purchase`);
+            const body = document.getElementById('purchasesBody');
+            if (!entries.length) { body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No purchases recorded yet.</td></tr>'; return; }
+            body.innerHTML = entries.slice(0, 50).map(e => `<tr>
+                <td>${e.date}</td><td>${e.description || '—'}</td><td>${e.supplier || '—'}</td><td style="font-weight:700">${fmt(e.amount)}</td>
+            </tr>`).join('');
+        } catch(e) {}
+    }
+
+    async function recordPurchase() {
+        const amount = +document.getElementById('pur_amount').value;
+        const desc = document.getElementById('pur_desc').value.trim();
+        if (!amount || !desc) { showToast('Description and amount are required', 'error'); return; }
+        try {
+            await apiFetch(`/api/bookkeeping/entries/purchase?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    description: desc, supplier: document.getElementById('pur_supplier').value,
+                    amount, date: document.getElementById('pur_date').value
+                })
+            });
+            ['pur_desc','pur_supplier','pur_amount'].forEach(id => document.getElementById(id).value = '');
+            loadPurchases();
+            showToast('Purchase recorded!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // Barcode lookup — barcode match first, then partial name match
+    async function lookupBarcode() {
+        const query = document.getElementById('barcodeInput').value.trim();
+        if (!query) return;
+        const resultEl = document.getElementById('barcodeResult');
+        try {
+            const res = await apiFetch(`/api/inventory/lookup?user_id=${userId}&q=${encodeURIComponent(query)}`);
+            if (res.found) {
+                const p = res.product;
+                const lowStock = p.current_stock <= p.reorder_level;
+                const stockColor = lowStock ? '#e53e3e' : '#276749';
+                const stockLabel = lowStock ? '⚠ Low stock' : 'In stock';
+                resultEl.style.cssText = 'display:block;background:#f0fff4;border:1px solid #c6f6d5;border-radius:12px;padding:14px;margin-bottom:12px';
+                resultEl.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+                        <div>
+                            <div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:4px">${p.name}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">
+                                Category: ${p.category||'—'} &nbsp;|&nbsp; Unit: ${p.unit||'—'}
+                            </div>
+                            <div style="margin-top:8px;display:flex;gap:16px;font-size:13px">
+                                <span>Sell Price: <strong>${fmt(p.selling_price)}</strong></span>
+                                <span>Cost: <strong>${fmt(p.cost_price)}</strong></span>
+                                <span style="color:${stockColor};font-weight:700">${stockLabel}: <strong>${p.current_stock} ${p.unit||''}</strong></span>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <input type="number" id="quickQty" placeholder="Qty" min="0.01" step="0.01"
+                                style="width:75px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700">
+                            <button class="btn btn-primary" onclick="quickSell('${p.name.replace(/'/g,"\\'")}',${p.selling_price},${p.cost_price},${p.current_stock},'${(p.unit||'').replace(/'/g,"\\'")}')">
+                                ⚡ Quick Sell
+                            </button>
+                            <button class="btn btn-secondary" onclick="prefillSale('${p.name.replace(/'/g,"\\'")}',${p.selling_price},${p.cost_price})">
+                                Fill Form
+                            </button>
+                        </div>
+                    </div>`;
+                document.getElementById('quickQty').focus();
+            } else {
+                resultEl.style.cssText = 'display:block;background:#fff5f5;border:1px solid #fc8181;border-radius:12px;padding:14px;margin-bottom:12px';
+                resultEl.innerHTML = `<strong>Product not found in inventory.</strong><br>
+                    <span style="font-size:12px;color:var(--text-muted)">
+                        Check the name or barcode, or
+                        <a href="#" onclick="switchTab('inventory')" style="color:var(--navy)">add it to inventory first</a>.
+                    </span>`;
+            }
+        } catch(e) { showToast('Lookup failed: ' + e.message, 'error'); }
+    }
+
+    // Quick Sell — sell directly from scan result, auto-deducts stock
+    async function quickSell(name, price, cost, currentStock, unit) {
+        const qty = +document.getElementById('quickQty').value;
+        if (!qty || qty <= 0) { showToast('Enter a quantity to sell', 'error'); document.getElementById('quickQty').focus(); return; }
+        if (qty > currentStock) {
+            showToast(`Only ${currentStock} ${unit} in stock — cannot sell ${qty}`, 'error');
+            return;
+        }
+        try {
+            const result = await apiFetch(`/api/finance/sales?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    product_name: name, quantity: qty, unit_price: price,
+                    unit_cost: cost, date: new Date().toISOString().split('T')[0]
+                })
+            });
+            document.getElementById('barcodeInput').value = '';
+            document.getElementById('barcodeResult').style.display = 'none';
+            if (result.inventory_deducted) {
+                const remaining = result.new_stock;
+                const msg = result.low_stock_alert
+                    ? `Sold ${qty} ${unit} of ${name}. ⚠ Only ${remaining} ${unit} left — reorder soon!`
+                    : `Sold ${qty} ${unit} of ${name}. Stock: ${remaining} ${unit} remaining.`;
+                showToast(msg, result.low_stock_alert ? '' : 'success');
+            } else {
+                showToast(`Sale recorded for ${name}.`, 'success');
+            }
+            loadSales();
+            loadInventory();
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    function handleBarcode(e) { if (e.key === 'Enter') lookupBarcode(); }
+
+    // ===== CAMERA SCANNER =====
+    let html5QrCode = null;
+    let _scanTarget = 'barcodeInput';
+    let _scanCallback = null;
+
+    function openCameraScanner(targetId = 'barcodeInput', callback = null) {
+        _scanTarget = targetId;
+        _scanCallback = callback;
+        document.getElementById('cameraModal').classList.add('open');
+        html5QrCode = new Html5Qrcode('qr-reader');
+        html5QrCode.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 260, height: 160 } },
+            (decodedText) => {
+                closeCameraScanner();
+                document.getElementById(_scanTarget).value = decodedText;
+                if (_scanCallback) _scanCallback();
+            },
+            () => {}
+        ).catch(err => {
+            closeCameraScanner();
+            showToast('Camera unavailable: ' + err, 'error');
+        });
+    }
+
+    function closeCameraScanner() {
+        document.getElementById('cameraModal').classList.remove('open');
+        if (html5QrCode) {
+            html5QrCode.stop().catch(() => {}).finally(() => {
+                html5QrCode.clear();
+                html5QrCode = null;
+            });
+        }
+    }
+
+    function prefillSale(name, price, cost) {
+        switchSubTab('sales');
+        document.getElementById('sale_product').value = name;
+        document.getElementById('sale_price').value = price;
+        document.getElementById('sale_cost').value = cost;
+        document.getElementById('sale_qty').focus();
+        document.getElementById('barcodeInput').value = '';
+        document.getElementById('barcodeResult').style.display = 'none';
+    }
+
+    // ===== FINANCIAL STATEMENTS =====
+    function setFormat(f) {
+        currentFormat = f;
+        document.querySelectorAll('.format-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === f));
+        renderStatements(window._lastStatements);
+    }
+
+    async function loadStatements() {
+        if (!userId) return;
+        const period = document.getElementById('stmtPeriod').value;
+        const date = document.getElementById('stmtDate').value;
+        try {
+            const [income, cashflow, balance] = await Promise.all([
+                apiFetch(`/api/statements/income?user_id=${userId}&period=${period}`),
+                apiFetch(`/api/statements/cashflow?user_id=${userId}&date=${date}`),
+                apiFetch(`/api/statements/balance?user_id=${userId}`)
+            ]);
+            window._lastStatements = { income, cashflow, balance };
+            renderStatements(window._lastStatements);
+        } catch(e) { showToast('Error generating statements: ' + e.message, 'error'); }
+    }
+
+    function renderStatements(data) {
+        if (!data) return;
+        const { income, cashflow, balance } = data;
+        const f = currentFormat;
+
+        let html = '';
+
+        // Income Statement
+        html += `<div class="section-card"><div class="section-title"><span class="icon-badge green">📊</span> Income Statement</div>`;
+        if (f === 'formal') {
+            income.formal.sections.forEach(s => {
+                html += `<div class="stmt-section"><div class="stmt-section-label">${s.label}</div>`;
+                s.items.forEach(item => html += `<div class="stmt-row indent"><span>${item.label}</span><span>${fmt(item.amount)}</span></div>`);
+                html += `<div class="stmt-row total ${s.highlight?'highlight':''} ${s.is_bottom_line?'big':''}"><span>${s.label}</span><span>${fmt(s.total)}</span></div>`;
+                if (s.margin !== undefined) html += `<div style="font-size:11px;color:var(--text-muted);text-align:right;padding-bottom:4px">Margin: ${s.margin}%</div>`;
+                html += `</div>`;
+            });
+        } else {
+            html += `<div class="simple-card">`;
+            income.simple.lines.forEach(l => {
+                html += `<div class="simple-line ${l.highlight?'highlight':''} ${l.big?'big':''}"><span>${l.label}</span><span>${l.value}</span></div>`;
+            });
+            html += `</div>`;
+        }
+        html += `</div>`;
+
+        // Cash Flow
+        html += `<div class="section-card"><div class="section-title"><span class="icon-badge blue">💧</span> Cash Flow — ${cashflow[f].date||cashflow[f].title}</div>`;
+        if (f === 'formal') {
+            const cf = cashflow.formal;
+            html += `<div class="stmt-row highlight"><span>Opening Balance</span><span>${fmt(cf.openingBalance)}</span></div>`;
+            html += `<div class="stmt-section-label">${cf.inflows.label}</div>`;
+            cf.inflows.items.forEach(i => html += `<div class="stmt-row indent"><span>${i.label}</span><span>${fmt(i.amount)}</span></div>`);
+            html += `<div class="stmt-row total"><span>Total Inflows</span><span>${fmt(cf.inflows.total)}</span></div>`;
+            html += `<div class="stmt-section-label">${cf.outflows.label}</div>`;
+            cf.outflows.items.forEach(i => html += `<div class="stmt-row indent"><span>${i.label}</span><span>(${fmt(i.amount)})</span></div>`);
+            html += `<div class="stmt-row total"><span>Total Outflows</span><span>(${fmt(cf.outflows.total)})</span></div>`;
+            html += `<div class="stmt-row highlight ${cf.netChange>=0?'':'error'}"><span>Net Cash Change</span><span>${fmt(cf.netChange)}</span></div>`;
+            html += `<div class="stmt-row total big"><span>Closing Balance</span><span>${fmt(cf.closingBalance)}</span></div>`;
+        } else {
+            html += `<div class="simple-card">`;
+            cashflow.simple.lines.forEach(l => html += `<div class="simple-line ${l.highlight?'highlight':''} ${l.big?'big':''}"><span>${l.label}</span><span>${l.value}</span></div>`);
+            html += `</div>`;
+        }
+        html += `</div>`;
+
+        // Balance Sheet
+        html += `<div class="section-card" style="grid-column:1/-1"><div class="section-title"><span class="icon-badge gold">⚖️</span> Balance Sheet — As of ${balance[f].as_of}</div>`;
+        if (f === 'formal') {
+            const bs = balance.formal;
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">`;
+            html += `<div><div class="stmt-section-label">ASSETS</div>`;
+            bs.assets.current.forEach(i => html += `<div class="stmt-row indent"><span>${i.label}</span><span>${fmt(i.amount)}</span></div>`);
+            html += `<div class="stmt-row total highlight"><span>Total Assets</span><span>${fmt(bs.assets.total)}</span></div></div>`;
+            html += `<div>`;
+            html += `<div class="stmt-section-label">LIABILITIES</div>`;
+            bs.liabilities.current.forEach(i => html += `<div class="stmt-row indent"><span>${i.label}</span><span>${fmt(i.amount)}</span></div>`);
+            html += `<div class="stmt-row total"><span>Total Liabilities</span><span>${fmt(bs.liabilities.total)}</span></div>`;
+            html += `<div class="stmt-section-label" style="margin-top:12px">EQUITY</div>`;
+            bs.equity.items.forEach(i => html += `<div class="stmt-row indent"><span>${i.label}</span><span>${fmt(i.amount)}</span></div>`);
+            html += `<div class="stmt-row total"><span>Total Equity</span><span>${fmt(bs.equity.total)}</span></div>`;
+            html += `<div class="stmt-row total highlight big"><span>Total Liabilities + Equity</span><span>${fmt(bs.totalLiabilitiesAndEquity)}</span></div>`;
+            html += `<div style="font-size:11px;color:${bs.balanced?'#48bb78':'#e53e3e'};margin-top:4px">${bs.balanced?'✓ Statement is balanced':'⚠ Statement is not balanced'}</div>`;
+            html += `</div></div>`;
+        } else {
+            html += `<div class="simple-card">`;
+            balance.simple.lines.forEach(l => {
+                html += `<div class="simple-line ${l.highlight?'highlight':''} ${l.section?'section':''}"><span>${l.label}</span><span>${l.value}</span></div>`;
+            });
+            html += `</div>`;
+        }
+        html += `</div>`;
+
+        document.getElementById('statementsGrid').innerHTML = html;
+    }
+
+    function printStatements() {
+        window.print();
+    }
+
+    // ===== CALCULATOR =====
+    async function calculateLoan() {
+        const principal = +document.getElementById('calc_principal').value;
+        const rate = +document.getElementById('calc_rate').value;
+        const term = +document.getElementById('calc_term').value;
+        if (!principal || !term) { showToast('Principal and term are required', 'error'); return; }
+        try {
+            const result = await apiFetch('/api/calculator/loan', {
+                method: 'POST',
+                body: JSON.stringify({ principal, rate: rate || 0, term_months: term })
+            });
+            document.getElementById('calcSummary').style.display = 'block';
+            document.getElementById('calcMonthly').textContent = fmt(result.monthlyPayment);
+            document.getElementById('calcInterest').textContent = fmt(result.totalInterest);
+            document.getElementById('calcTotal').textContent = fmt(result.totalPayment);
+            document.getElementById('calcSchedule').innerHTML = result.schedule.map(s =>
+                `<tr><td>${s.month}</td><td>${fmt(s.payment)}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${fmt(s.remainingBalance)}</td></tr>`
+            ).join('');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ===== SETTINGS =====
+    async function loadSettings() {
+        if (!userId) return;
+        try {
+            const settings = await apiFetch(`/api/notifications/settings?user_id=${userId}`);
+            document.getElementById('notif_email').value = settings.notification_email || '';
+            document.getElementById('notif_loan_days').value = settings.loan_days_before || 3;
+            document.getElementById('notif_inventory').checked = !!settings.inventory_alerts;
+            document.getElementById('notif_loans').checked = !!settings.loan_alerts;
+            loadSmtpSettings();
+
+            // Full credit score breakdown
+            const score = await apiFetch(`/api/credit-score/${userId}`);
+            let breakdownHtml = `<div style="text-align:center;margin-bottom:20px">
+                <div class="score-circle" style="border-color:${score.color}"><span class="score-number" style="color:${score.color}">${score.score}</span><span class="score-grade" style="color:${score.color}">${score.grade}</span></div>
+            </div>`;
+            Object.entries(score.factors).forEach(([k, v]) => {
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const pct = Math.round(v.score / v.max * 100);
+                breakdownHtml += `<div style="margin-bottom:14px">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px">
+                        <span>${label}</span><span style="color:var(--text-muted)">${v.score}/${v.max} pts</span>
+                    </div>
+                    <div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%;background:${score.color}"></div></div>
+                    ${v.note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${v.note}</div>` : ''}
+                    ${v.margin !== undefined ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Profit margin: ${v.margin}%</div>` : ''}
+                    ${v.overdue !== undefined ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Overdue: ${v.overdue}, Completed: ${v.completed}</div>` : ''}
+                </div>`;
+            });
+            document.getElementById('fullScoreBreakdown').innerHTML = breakdownHtml;
+        } catch(e) { showToast('Failed to load settings: ' + e.message, 'error'); }
+    }
+
+    async function saveNotifSettings() {
+        try {
+            await apiFetch(`/api/notifications/settings?user_id=${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    notification_email: document.getElementById('notif_email').value,
+                    loan_days_before: +document.getElementById('notif_loan_days').value || 3,
+                    inventory_alerts: document.getElementById('notif_inventory').checked,
+                    loan_alerts: document.getElementById('notif_loans').checked
+                })
+            });
+            showToast('Settings saved!', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function testNotifications() {
+        try {
+            await apiFetch(`/api/notifications/trigger?user_id=${userId}`, { method: 'POST' });
+            showToast('Notification check triggered. Check your email if SMTP is configured.', 'success');
+        } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // ===== SMTP SETTINGS =====
+    async function loadSmtpSettings() {
+        try {
+            const cfg = await apiFetch('/api/smtp/config');
+            document.getElementById('smtp_host').value = cfg.smtp_host || 'smtp.gmail.com';
+            document.getElementById('smtp_port').value = cfg.smtp_port || 587;
+            document.getElementById('smtp_user').value = cfg.smtp_user || '';
+            document.getElementById('smtp_pass').value = cfg.smtp_pass || '';
+            const statusEl = document.getElementById('smtpStatus');
+            if (cfg.smtp_user) {
+                statusEl.className = 'smtp-status ok';
+                statusEl.textContent = '✓ Configured — ' + cfg.smtp_user;
+            } else {
+                statusEl.className = 'smtp-status notset';
+                statusEl.textContent = '⚠ Not configured — emails will not send';
+            }
+        } catch(e) {}
+    }
+
+    async function saveSmtpSettings() {
+        try {
+            await apiFetch('/api/smtp/config', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    smtp_host: document.getElementById('smtp_host').value || 'smtp.gmail.com',
+                    smtp_port: +document.getElementById('smtp_port').value || 587,
+                    smtp_user: document.getElementById('smtp_user').value,
+                    smtp_pass: document.getElementById('smtp_pass').value
+                })
+            });
+            await loadSmtpSettings();
+            showToast('SMTP settings saved and applied!', 'success');
+        } catch(e) { showToast('Error saving SMTP: ' + e.message, 'error'); }
+    }
+
+    async function testEmail() {
+        try {
+            const result = await apiFetch(`/api/notifications/test?user_id=${userId}`, { method: 'POST' });
+            showToast(result.message || 'Test email sent! Check your inbox.', 'success');
+        } catch(e) { showToast('Test email failed: ' + e.message, 'error'); }
+    }
+
+    // ===== INITIAL LOAD =====
+    loadOverview();
+</script>
+</body>
+</html>
