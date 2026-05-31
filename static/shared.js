@@ -257,21 +257,15 @@ function canAccess(page) {
   return perms.includes(mod);
 }
 
-// ─── Render layout (sidebar + header) ─────────────────────────────────────────
-function renderLayout(activePage, pageTitle) {
-  const user    = S.user    || {};
-  const company = S.company || {};
-  S.symbol = company.currency_symbol || user.currency_symbol || '$';
-
-  // Build sidebar HTML — skip items and section headers for denied modules
+// ─── Nav builder (shared by renderLayout + permission refresh) ────────────────
+function _buildNav(activePage) {
   let nav = '';
-  let pendingSection = null;  // hold section header until we know something is visible under it
+  let pendingSection = null;
   for (const item of NAV_ITEMS) {
     if (item.section !== undefined) {
-      pendingSection = item;  // defer rendering until we see a visible child
+      pendingSection = item;
     } else {
       if (!canAccess(item.page)) continue;
-      // Flush deferred section header now that we have a visible item
       if (pendingSection) {
         const style = pendingSection.gold ? 'style="color:rgba(200,150,62,.7)"' : '';
         nav += `<div class="sidebar-section" ${style}>${pendingSection.section}</div>`;
@@ -284,6 +278,37 @@ function renderLayout(activePage, pageTitle) {
       </a>`;
     }
   }
+  return nav;
+}
+
+// Fetch fresh user data from server and rebuild nav if permissions changed
+function _refreshNavPerms(activePage) {
+  if (!S.token) return;
+  fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${S.token}` } })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (!d?.user) return;
+      const newPerms = d.user.module_permissions;
+      const oldPerms = S.user?.module_permissions;
+      // Always update S.user with fresh server data
+      S.user = Object.assign({}, S.user, d.user);
+      localStorage.setItem('tt_user', JSON.stringify(S.user));
+      // Rebuild the sidebar nav if permissions changed or were previously missing
+      if (newPerms !== oldPerms || oldPerms === undefined) {
+        const navEl = document.querySelector('.sidebar-nav');
+        if (navEl) navEl.innerHTML = _buildNav(activePage);
+      }
+    })
+    .catch(() => {});
+}
+
+// ─── Render layout (sidebar + header) ─────────────────────────────────────────
+function renderLayout(activePage, pageTitle) {
+  const user    = S.user    || {};
+  const company = S.company || {};
+  S.symbol = company.currency_symbol || user.currency_symbol || '$';
+
+  const nav = _buildNav(activePage);
 
   const sidebarHTML = `
     <aside class="sidebar" id="sidebar">
@@ -362,6 +387,9 @@ function renderLayout(activePage, pageTitle) {
   // Sidebar toggle
   document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
   updateOnlineStatus();
+
+  // Async: refresh permissions from server and rebuild nav if stale
+  _refreshNavPerms(activePage);
 }
 
 function toggleSidebar() {
