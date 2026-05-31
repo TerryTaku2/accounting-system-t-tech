@@ -35,10 +35,18 @@ ACCESS_EXPIRE_MIN   = 480   # 8 hours
 REFRESH_EXPIRE_DAYS = 30
 
 def _load_secret() -> str:
+    # Prefer environment variable (required in production / Render)
+    env_key = os.environ.get("SECRET_KEY", "").strip()
+    if env_key:
+        return env_key
+    # Fallback: persist to local file (development only)
     if os.path.exists(SECRET_FILE):
         return open(SECRET_FILE).read().strip()
     key = secrets.token_hex(32)
-    open(SECRET_FILE, "w").write(key)
+    try:
+        open(SECRET_FILE, "w").write(key)
+    except OSError:
+        pass  # read-only fs — key valid for this process only
     return key
 
 SECRET_KEY = _load_secret()
