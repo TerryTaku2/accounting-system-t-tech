@@ -370,6 +370,8 @@
     <!-- Camera view -->
     <div class="scanner-wrap" id="scanner-cam-wrap">
       <video id="scanner-video" playsinline muted autoplay style="width:100%;display:block;max-height:280px;object-fit:cover"></video>
+      <!-- html5-qrcode fallback container (shown when BarcodeDetector unavailable) -->
+      <div id="h5qr-reader" style="display:none;width:100%"></div>
       <div class="scan-frame">
         <div class="scan-line"></div>
         <div class="scan-corner sc-tl"></div>
@@ -435,7 +437,13 @@
         <div class="field"><label>Cost Price</label><input type="number" id="prod-cost" step="0.01" min="0" placeholder="0.00"></div>
         <div class="field"><label>Selling Price *</label><input type="number" id="prod-sell" step="0.01" min="0" placeholder="0.00"></div>
       </div>
-      <div class="field"><label>Opening Stock</label><input type="number" id="prod-stock" step="0.01" min="0" value="0"></div>
+      <div class="field" id="prod-stock-field">
+        <label id="prod-stock-label">Opening Stock <span style="font-weight:400;color:var(--muted);font-size:11px">(posts to Inventory GL)</span></label>
+        <input type="number" id="prod-stock" step="0.01" min="0" value="0">
+        <div id="prod-stock-hint" style="font-size:11px;color:var(--muted);margin-top:4px;display:none">
+          To change stock, use the <strong>Enter Stock</strong> tab.
+        </div>
+      </div>
       <div class="field"><label>Description</label><textarea id="prod-description" rows="2" style="resize:vertical"></textarea></div>
     </div>
     <div class="modal-footer">
@@ -540,16 +548,18 @@
 </div>
 
 <div id="toast-container"></div>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="/static/shared.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let allProducts  = [];
-let allMovements = [];
-let cart         = [];   // [{product, qty, price}]
-let scanTarget   = 'pos';
-let scanStream   = null;
-let editProdId   = null;
-let restockProdId= null;
+let allProducts   = [];
+let allMovements  = [];
+let cart          = [];   // [{product, qty, price}]
+let scanTarget    = 'pos';
+let scanStream    = null;
+let h5qrInstance  = null;   // html5-qrcode fallback instance
+let editProdId    = null;
+let restockProdId = null;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (async function() {
@@ -971,8 +981,13 @@ function openProductModal() {
   ['prod-barcode','prod-name','prod-category','prod-unit','prod-description'].forEach(id =>
     document.getElementById(id).value = '');
   ['prod-cost','prod-sell'].forEach(id => document.getElementById(id).value = '0');
-  document.getElementById('prod-stock').value   = '0';
-  document.getElementById('prod-reorder').value = '0';
+  document.getElementById('prod-stock').value    = '0';
+  document.getElementById('prod-stock').readOnly = false;
+  document.getElementById('prod-stock').style.background = '';
+  document.getElementById('prod-stock-label').innerHTML  =
+    'Opening Stock <span style="font-weight:400;color:var(--muted);font-size:11px">(posts to Inventory GL)</span>';
+  document.getElementById('prod-stock-hint').style.display = 'none';
+  document.getElementById('prod-reorder').value  = '0';
   document.getElementById('prod-modal-error').style.display = 'none';
   openModal('product-modal');
 }
@@ -988,9 +1003,14 @@ function editProduct(id) {
   document.getElementById('prod-unit').value               = p.unit || '';
   document.getElementById('prod-cost').value               = p.cost_price || 0;
   document.getElementById('prod-sell').value               = p.selling_price || 0;
-  document.getElementById('prod-stock').value              = p.current_stock || 0;
   document.getElementById('prod-reorder').value            = p.reorder_level || 0;
   document.getElementById('prod-description').value        = p.description || '';
+  // Stock is read-only in edit mode — changes go through Enter Stock tab
+  document.getElementById('prod-stock').value    = p.current_stock || 0;
+  document.getElementById('prod-stock').readOnly = true;
+  document.getElementById('prod-stock').style.background = 'var(--bg)';
+  document.getElementById('prod-stock-label').innerHTML   = 'Current Stock';
+  document.getElementById('prod-stock-hint').style.display = 'block';
   document.getElementById('prod-modal-error').style.display = 'none';
   openModal('product-modal');
 }
@@ -1016,27 +1036,56 @@ async function saveProduct() {
   errEl.style.display = 'none';
   const name = document.getElementById('prod-name').value.trim();
   if (!name) { errEl.textContent = 'Product name is required.'; errEl.style.display='block'; return; }
-  const barcode = document.getElementById('prod-barcode').value.trim();
+
+  const barcode      = document.getElementById('prod-barcode').value.trim();
+  const costPrice    = parseFloat(document.getElementById('prod-cost').value)    || 0;
+  const openingStock = editProdId ? 0 : (parseFloat(document.getElementById('prod-stock').value) || 0);
+
   const payload = {
     sku:          barcode || null,
     barcode:      barcode || null,
     name,
     category:     document.getElementById('prod-category').value.trim() || null,
     unit:         document.getElementById('prod-unit').value.trim()     || null,
-    cost_price:   parseFloat(document.getElementById('prod-cost').value)    || 0,
+    cost_price:   costPrice,
     selling_price:parseFloat(document.getElementById('prod-sell').value)    || 0,
-    current_stock:parseFloat(document.getElementById('prod-stock').value)   || 0,
+    current_stock:0,   // always start at 0; opening stock goes through a movement below
     reorder_level:parseFloat(document.getElementById('prod-reorder').value) || 0,
     description:  document.getElementById('prod-description').value.trim() || null,
   };
+
   const btn = document.getElementById('prod-save-btn');
   btn.disabled = true;
+
   const result = editProdId
     ? await api('PUT', `/api/products/${editProdId}`, payload)
     : await api('POST', '/api/products', payload);
+
+  if (!result) { btn.disabled = false; return; }
+
+  // For new products with opening stock: post a GL-linked stock-in movement
+  if (!editProdId && openingStock > 0) {
+    const moveResult = await api('POST', '/api/stock/movements', {
+      product_id: result.id,
+      type:       'in',
+      date:       new Date().toISOString().split('T')[0],
+      quantity:   openingStock,
+      unit_cost:  costPrice || null,
+      reference:  'OPENING',
+      notes:      `Opening stock — ${name}`,
+      post_gl:    true,
+    });
+    if (!moveResult) {
+      toast('Product created but opening stock movement failed — add stock manually.', 'error', 6000);
+      btn.disabled = false;
+      closeModal('product-modal');
+      await loadProducts();
+      return;
+    }
+  }
+
   btn.disabled = false;
-  if (!result) return;
-  toast(editProdId ? 'Product updated' : 'Product created', 'success');
+  toast(editProdId ? 'Product updated' : `Product created${openingStock > 0 ? ` with ${openingStock} units in stock` : ''}`, 'success');
   closeModal('product-modal');
   await loadProducts();
 }
@@ -1082,44 +1131,82 @@ async function saveRestock() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BARCODE SCANNER
+// BARCODE SCANNER  (BarcodeDetector → html5-qrcode fallback → manual)
 // ─────────────────────────────────────────────────────────────────────────────
 async function openScanner(target) {
   scanTarget = target;
-  document.getElementById('scanner-manual').value  = '';
-  document.getElementById('scanner-status').textContent = 'Point camera at barcode…';
+  document.getElementById('scanner-manual').value = '';
+  document.getElementById('scanner-status').textContent = 'Starting camera…';
   document.getElementById('scanner-cam-wrap').style.display = 'block';
   document.getElementById('scanner-no-cam').style.display   = 'none';
+  document.getElementById('scanner-video').style.display    = 'block';
+  document.getElementById('h5qr-reader').style.display      = 'none';
   openModal('scanner-modal');
 
-  const video = document.getElementById('scanner-video');
   if (!navigator.mediaDevices?.getUserMedia) {
-    video.style.display = 'none';
-    document.getElementById('scanner-cam-wrap').style.display = 'none';
-    document.getElementById('scanner-no-cam').style.display   = 'block';
-    document.getElementById('scanner-status').textContent = 'Camera not supported — use manual entry';
+    _showNoCam('Camera not supported — use manual entry below');
     return;
   }
-  try {
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    video.srcObject = scanStream;
-    await video.play();
-    if ('BarcodeDetector' in window) {
-      runBarcodeDetector(video);
-    } else {
-      document.getElementById('scanner-status').textContent =
-        'Live detection not supported — use manual entry below';
+
+  if ('BarcodeDetector' in window) {
+    // ── Path A: Native BarcodeDetector (Chrome / Edge desktop + Android) ──
+    try {
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      const video = document.getElementById('scanner-video');
+      video.srcObject = scanStream;
+      await video.play();
+      document.getElementById('scanner-status').textContent = 'Scanning…';
+      _runNativeDetector(video);
+    } catch {
+      _showNoCam('Camera access denied — use manual entry');
     }
-  } catch {
-    document.getElementById('scanner-cam-wrap').style.display = 'none';
-    document.getElementById('scanner-no-cam').style.display   = 'block';
-    document.getElementById('scanner-status').textContent = 'Camera access denied — use manual entry';
+
+  } else if (typeof Html5Qrcode !== 'undefined') {
+    // ── Path B: html5-qrcode (Firefox, Safari iOS, all others) ──
+    document.getElementById('scanner-video').style.display = 'none';
+    const reader = document.getElementById('h5qr-reader');
+    reader.style.display = 'block';
+    reader.innerHTML = '';   // clear any previous instance
+    try {
+      h5qrInstance = new Html5Qrcode('h5qr-reader');
+      await h5qrInstance.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 140 },
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.QR_CODE,
+          ]
+        },
+        async (decodedText) => {
+          await closeScanner();
+          await handleScannedBarcode(decodedText);
+        },
+        () => {}   // suppress per-frame errors
+      );
+      document.getElementById('scanner-status').textContent = 'Scanning…';
+    } catch {
+      _showNoCam('Camera access denied — use manual entry');
+    }
+
+  } else {
+    _showNoCam('Scanner library not loaded — use manual entry');
   }
 }
 
-async function runBarcodeDetector(video) {
+function _showNoCam(msg) {
+  document.getElementById('scanner-cam-wrap').style.display = 'none';
+  document.getElementById('scanner-no-cam').style.display   = 'block';
+  document.getElementById('scanner-status').textContent     = msg;
+}
+
+async function _runNativeDetector(video) {
   let detector;
   try {
     detector = new BarcodeDetector({
@@ -1133,10 +1220,11 @@ async function runBarcodeDetector(video) {
   const tick = async () => {
     if (!active || !scanStream) return;
     try {
-      const barcodes = await detector.detect(video);
-      if (barcodes.length > 0) {
+      const results = await detector.detect(video);
+      if (results.length > 0) {
         active = false;
-        await handleScannedBarcode(barcodes[0].rawValue);
+        await closeScanner();
+        await handleScannedBarcode(results[0].rawValue);
         return;
       }
     } catch {}
@@ -1145,18 +1233,25 @@ async function runBarcodeDetector(video) {
   requestAnimationFrame(tick);
 }
 
-function closeScanner() {
+async function closeScanner() {
+  // Stop native stream
   const video = document.getElementById('scanner-video');
   if (video._stopScan) { video._stopScan(); video._stopScan = null; }
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   video.srcObject = null;
+  // Stop html5-qrcode instance
+  if (h5qrInstance) {
+    try { await h5qrInstance.stop(); } catch {}
+    h5qrInstance = null;
+    document.getElementById('h5qr-reader').innerHTML = '';
+  }
   closeModal('scanner-modal');
 }
 
 async function confirmManualScan() {
   const val = document.getElementById('scanner-manual').value.trim();
   if (!val) return;
-  closeScanner();
+  await closeScanner();
   await handleScannedBarcode(val);
 }
 
