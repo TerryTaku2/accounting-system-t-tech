@@ -983,6 +983,7 @@ DEFAULT_ACCOUNTS = [
     ("5010","Cost of Goods Sold","expense","cost_of_sales","5000"),
     ("5020","Direct Labour","expense","direct_cost","5000"),
     ("5030","Direct Materials","expense","direct_cost","5000"),
+    ("5040","Inventory Adjustment","expense","inventory_adjustment","5000"),
     ("6000","Operating Expenses","expense","operating_expense",None),
     ("6010","Salaries & Wages","expense","payroll","6000"),
     ("6020","Employee Benefits","expense","payroll","6000"),
@@ -1001,6 +1002,7 @@ DEFAULT_ACCOUNTS = [
     ("6700","Insurance","expense","overhead","6000"),
     ("6800","Repairs & Maintenance","expense","overhead","6000"),
     ("6900","Depreciation Expense","expense","depreciation","6000"),
+    ("6950","Loss on Disposal of Assets","expense","disposal_loss","6000"),
     ("7000","Finance Costs","expense","finance",None),
     ("7010","Bank Charges & Fees","expense","finance","7000"),
     ("7020","Interest Expense","expense","finance","7000"),
@@ -2986,20 +2988,23 @@ async def create_stock_movement(req: StockMovementCreate, cu: dict = Depends(cur
             new_cost  = prod["cost_price"]
 
         eid = None
-        if req.post_gl and total_cost > 0:
-            inv_acc = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
-                                  (prod["inventory_account_id"], cu["company_id"])).fetchone()
-                       if prod["inventory_account_id"] else None) or \
-                      get_acc_by_code(db, cu["company_id"], "1200") or \
-                      get_acc_by_subtype(db, cu["company_id"], "inventory")
-            if inv_acc and movement_type == "in" and req.unit_cost > 0:
-                ap = get_acc_by_code(db, cu["company_id"], "2020") or get_acc_by_subtype(db, cu["company_id"], "payable")
+        inv_acc = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
+                              (prod["inventory_account_id"], cu["company_id"])).fetchone()
+                   if prod["inventory_account_id"] else None) or \
+                  get_acc_by_code(db, cu["company_id"], "1200") or \
+                  get_acc_by_subtype(db, cu["company_id"], "inventory")
+
+        if req.post_gl and inv_acc:
+            if movement_type == "in" and unit_cost > 0 and total_cost > 0:
+                ap = get_acc_by_code(db, cu["company_id"], "2020") or \
+                     get_acc_by_subtype(db, cu["company_id"], "payable")
                 if ap:
                     eid = auto_post_gl(db, cu["company_id"], cu["id"], move_date,
                                        f"Stock In: {prod['name']} × {req.quantity}",
                                        [(inv_acc["id"], total_cost, 0, f"Stock in: {prod['code']}"),
                                         (ap["id"], 0, total_cost, f"Stock in: {prod['name']}")])
-            elif inv_acc and movement_type == "out":
+
+            elif movement_type == "out" and total_cost > 0:
                 cogs = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
                                    (prod["cogs_account_id"], cu["company_id"])).fetchone()
                         if prod["cogs_account_id"] else None) or \
@@ -3007,9 +3012,36 @@ async def create_stock_movement(req: StockMovementCreate, cu: dict = Depends(cur
                        get_acc_by_subtype(db, cu["company_id"], "cost_of_sales")
                 if cogs:
                     eid = auto_post_gl(db, cu["company_id"], cu["id"], move_date,
-                                       f"COGS: {prod['name']} × {req.quantity}",
+                                       f"Stock Out: {prod['name']} × {req.quantity}",
                                        [(cogs["id"], total_cost, 0, f"COGS: {prod['code']}"),
                                         (inv_acc["id"], 0, total_cost, f"COGS: {prod['name']}")])
+
+            elif movement_type == "adjustment":
+                diff_qty  = req.quantity - prod["current_stock"]
+                diff_cost = round(abs(diff_qty) * prod["cost_price"], 2)
+                if diff_cost > 0:
+                    if diff_qty > 0:
+                        # Surplus: more stock found → DR Inventory, CR Other Income
+                        contra = get_acc_by_code(db, cu["company_id"], "4100") or \
+                                 get_acc_by_subtype(db, cu["company_id"], "other_income")
+                        if contra:
+                            eid = auto_post_gl(
+                                db, cu["company_id"], cu["id"], move_date,
+                                f"Stock Adjustment (Surplus): {prod['name']} {diff_qty:+.4f} units",
+                                [(inv_acc["id"], diff_cost, 0,       f"Inventory surplus: {prod['code']}"),
+                                 (contra["id"],  0, diff_cost,       f"Stock adj income: {prod['code']}")])
+                    else:
+                        # Write-off: missing/damaged stock → DR Inventory Adjustment, CR Inventory
+                        contra = get_acc_by_code(db, cu["company_id"], "5040") or \
+                                 get_acc_by_subtype(db, cu["company_id"], "inventory_adjustment") or \
+                                 get_acc_by_code(db, cu["company_id"], "5010")
+                        if contra:
+                            eid = auto_post_gl(
+                                db, cu["company_id"], cu["id"], move_date,
+                                f"Stock Adjustment (Write-off): {prod['name']} {diff_qty:+.4f} units",
+                                [(contra["id"],  diff_cost, 0,       f"Inventory write-off: {prod['code']}"),
+                                 (inv_acc["id"], 0, diff_cost,       f"Stock adj loss: {prod['code']}")])
+                total_cost = diff_cost  # store GL-relevant amount in movement record
 
         db.execute("UPDATE products SET current_stock=?, cost_price=? WHERE id=?",
                    (round(new_stock, 4), round(new_cost, 4), req.product_id))
@@ -3326,6 +3358,7 @@ class FixedAssetCreate(BaseModel):
     asset_account_id: Optional[int] = None
     dep_expense_account_id: Optional[int] = None
     accum_dep_account_id: Optional[int] = None
+    payment_method: str = "cash"   # "cash" → CR Bank, "credit" → CR Accounts Payable
 
 class DepreciationReq(BaseModel):
     period: str
@@ -3358,6 +3391,7 @@ async def get_fixed_asset(aid: int, cu: dict = Depends(current_user)):
 
 @app.post("/api/fixed-assets", status_code=201)
 async def create_fixed_asset(req: FixedAssetCreate, cu: dict = Depends(current_user)):
+    if cu["role"] not in ("admin","accountant"): raise HTTPException(403, "Insufficient permissions")
     db = get_db()
     try:
         num = next_asset_num(db, cu["company_id"])
@@ -3371,8 +3405,28 @@ async def create_fixed_asset(req: FixedAssetCreate, cu: dict = Depends(current_u
              req.depreciation_method, rate, req.purchase_cost,
              req.asset_account_id, req.dep_expense_account_id, req.accum_dep_account_id, cu["id"])
         )
+        # GL: DR Asset Account, CR Bank (cash purchase) or CR AP (credit purchase)
+        asset_acc = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
+                                 (req.asset_account_id, cu["company_id"])).fetchone()
+                     if req.asset_account_id else None) or \
+                    get_acc_by_code(db, cu["company_id"], "1500") or \
+                    get_acc_by_subtype(db, cu["company_id"], "fixed_asset")
+        if req.payment_method == "credit":
+            credit_acc = get_acc_by_code(db, cu["company_id"], "2020") or \
+                         get_acc_by_subtype(db, cu["company_id"], "payable")
+        else:
+            credit_acc = get_acc_by_code(db, cu["company_id"], "1030") or \
+                         get_acc_by_code(db, cu["company_id"], "1010") or \
+                         get_acc_by_subtype(db, cu["company_id"], "bank")
+        if asset_acc and credit_acc:
+            auto_post_gl(db, cu["company_id"], cu["id"], req.purchase_date,
+                         f"Asset Acquisition: {req.name} ({num})",
+                         [(asset_acc["id"], req.purchase_cost, 0, f"Asset: {num}"),
+                          (credit_acc["id"], 0, req.purchase_cost, f"Acquisition: {req.name}")])
         db.commit()
         return dict(db.execute("SELECT * FROM fixed_assets WHERE id=?", (cur.lastrowid,)).fetchone())
+    except HTTPException: db.rollback(); raise
+    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
     finally: db.close()
 
 @app.post("/api/fixed-assets/{aid}/depreciate")
@@ -3434,11 +3488,60 @@ async def dispose_asset(aid: int, body: dict, cu: dict = Depends(current_user)):
                            (aid, cu["company_id"])).fetchone()
         if not asset: raise HTTPException(404, "Asset not found")
         if asset["status"] != "active": raise HTTPException(400, "Asset already disposed")
+        asset = dict(asset)
+        proceeds     = round(float(body.get("proceeds", 0)), 2)
+        disposal_date = body.get("disposal_date", datetime.now().strftime("%Y-%m-%d"))
+        book_value   = round(asset["book_value"], 2)
+        gain_loss    = round(proceeds - book_value, 2)
+
+        # Resolve GL accounts
+        asset_acc = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
+                                 (asset["asset_account_id"], cu["company_id"])).fetchone()
+                     if asset["asset_account_id"] else None) or \
+                    get_acc_by_code(db, cu["company_id"], "1500") or \
+                    get_acc_by_subtype(db, cu["company_id"], "fixed_asset")
+        accum_acc = (db.execute("SELECT * FROM accounts WHERE id=? AND company_id=?",
+                                 (asset["accum_dep_account_id"], cu["company_id"])).fetchone()
+                     if asset["accum_dep_account_id"] else None) or \
+                    get_acc_by_code(db, cu["company_id"], "1600") or \
+                    get_acc_by_subtype(db, cu["company_id"], "contra_asset")
+
+        if asset_acc:
+            gl_lines = []
+            # DR Cash / Bank for proceeds received
+            if proceeds > 0:
+                cash = get_acc_by_code(db, cu["company_id"], "1030") or \
+                       get_acc_by_code(db, cu["company_id"], "1010") or \
+                       get_acc_by_subtype(db, cu["company_id"], "bank")
+                if cash:
+                    gl_lines.append((cash["id"], proceeds, 0, f"Disposal proceeds: {asset['asset_number']}"))
+            # DR Accumulated Depreciation (debit reverses the credit-normal contra account)
+            if asset["accumulated_depreciation"] > 0 and accum_acc:
+                gl_lines.append((accum_acc["id"], asset["accumulated_depreciation"], 0,
+                                  f"Remove accum. depr.: {asset['asset_number']}"))
+            # Gain or Loss
+            if gain_loss > 0:
+                gain_acc = get_acc_by_code(db, cu["company_id"], "4120") or \
+                           get_acc_by_subtype(db, cu["company_id"], "gain")
+                if gain_acc:
+                    gl_lines.append((gain_acc["id"], 0, gain_loss, f"Gain on disposal: {asset['asset_number']}"))
+            elif gain_loss < 0:
+                loss_acc = get_acc_by_code(db, cu["company_id"], "6950") or \
+                           get_acc_by_subtype(db, cu["company_id"], "disposal_loss")
+                if loss_acc:
+                    gl_lines.append((loss_acc["id"], abs(gain_loss), 0, f"Loss on disposal: {asset['asset_number']}"))
+            # CR Asset Account at original cost (remove from books)
+            gl_lines.append((asset_acc["id"], 0, asset["purchase_cost"], f"Dispose: {asset['asset_number']}"))
+            if gl_lines:
+                auto_post_gl(db, cu["company_id"], cu["id"], disposal_date,
+                             f"Asset Disposal: {asset['name']} ({asset['asset_number']})", gl_lines)
+
         db.execute("UPDATE fixed_assets SET status='disposed',disposal_date=?,disposal_proceeds=? WHERE id=?",
-                   (body.get("disposal_date", datetime.now().strftime("%Y-%m-%d")),
-                    float(body.get("proceeds", 0)), aid))
+                   (disposal_date, proceeds, aid))
         db.commit()
-        return {"message": "Asset disposed"}
+        return {"message": "Asset disposed", "gain_loss": gain_loss}
+    except HTTPException: db.rollback(); raise
+    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
     finally: db.close()
 
 @app.get("/api/reports/asset-register")
@@ -5150,6 +5253,29 @@ def migrate_db():
             db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
         except Exception:
             pass
+
+    # Ensure new GL accounts exist for every existing company
+    try:
+        new_gl_accounts = [
+            ("5040", "Inventory Adjustment",       "expense", "inventory_adjustment", "5000"),
+            ("6950", "Loss on Disposal of Assets", "expense", "disposal_loss",        "6000"),
+        ]
+        for comp in db.execute("SELECT id FROM companies").fetchall():
+            cid = comp["id"]
+            for code, name, atype, subtype, parent_code in new_gl_accounts:
+                if not db.execute("SELECT id FROM accounts WHERE company_id=? AND code=?",
+                                  (cid, code)).fetchone():
+                    parent = db.execute("SELECT id FROM accounts WHERE company_id=? AND code=?",
+                                        (cid, parent_code)).fetchone()
+                    db.execute(
+                        "INSERT INTO accounts(company_id,code,name,type,sub_type,parent_id,normal_balance) VALUES(?,?,?,?,?,?,?)",
+                        (cid, code, name, atype, subtype,
+                         parent["id"] if parent else None, "debit")
+                    )
+        db.commit()
+    except Exception:
+        pass
+
     # Populate user_companies from existing users.company_id relationships
     try:
         users = db.execute("SELECT id, company_id, role FROM users").fetchall()
