@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Journal Entries</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="journals" onclick="switchTab('journals')">Journal Entries</button>
+    <button class="tab-btn" data-tab="ledger"   onclick="switchTab('ledger')">General Ledger</button>
+  </div>
+
+  <!-- ── JOURNAL ENTRIES ────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-journals">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Journal Entries</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="je-search" placeholder="Search…" oninput="renderJournals()">
+          <input type="date" id="je-from" onchange="renderJournals()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <input type="date" id="je-to"   onchange="renderJournals()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <select id="je-status" onchange="renderJournals()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Status</option>
+            <option value="posted">Posted</option>
+            <option value="draft">Draft</option>
+            <option value="void">Void</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="openNewJournalModal()">+ New Entry</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Entry #</th><th>Date</th><th>Description</th><th>Reference</th><th class="r">Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="journals-body">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📓</div><div class="empty-title">Loading…</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="je-pagination" class="pagination"></div>
+    </div>
+  </div>
+
+  <!-- ── GENERAL LEDGER ─────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-ledger">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">General Ledger</div>
+        <div class="section-actions">
+          <select id="ledger-account" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;min-width:220px">
+            <option value="">— Select account —</option>
+          </select>
+          <input type="date" id="ledger-from" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <input type="date" id="ledger-to"   style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <button class="btn btn-sm btn-primary" onclick="loadLedger()">Run</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Entry #</th><th>Description</th><th class="r">Debit</th><th class="r">Credit</th><th class="r">Balance</th></tr></thead>
+          <tbody id="ledger-body">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📒</div><div class="empty-title">Select an account to view transactions</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── NEW JOURNAL ENTRY MODAL ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="journal-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Journal Entry</div>
+      <button class="modal-close" onclick="closeModal('journal-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="journal-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Date</label><input type="date" id="je-date"></div>
+        <div class="field"><label>Reference</label><input type="text" id="je-reference" placeholder="e.g. INV-001"></div>
+      </div>
+      <div class="field"><label>Description</label><input type="text" id="je-description" placeholder="Journal entry description…"></div>
+
+      <div style="margin-top:16px;margin-bottom:8px;font-size:12px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.04em">Journal Lines</div>
+      <div class="table-wrap" style="margin-bottom:12px">
+        <table class="lines-table" id="je-lines-table">
+          <thead><tr><th style="min-width:200px">Account</th><th>Description</th><th style="width:120px">Debit</th><th style="width:120px">Credit</th><th style="width:40px"></th></tr></thead>
+          <tbody id="je-lines-body"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="addJournalLine()">+ Add Line</button>
+
+      <div class="totals-row" style="margin-top:12px">
+        <span>Total Debits: <strong id="je-total-dr" style="color:var(--navy)">0.00</strong></span>
+        <span>Total Credits: <strong id="je-total-cr" style="color:var(--navy)">0.00</strong></span>
+        <span id="je-balance-indicator" style="font-weight:700;color:var(--muted)">Balanced</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('journal-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveJournal()" id="je-save-btn">Post Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VIEW JOURNAL DETAIL MODAL ───────────────────────────────────────────── -->
+<div class="modal-overlay" id="journal-detail-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="jd-title">Journal Entry Detail</div>
+      <button class="modal-close" onclick="closeModal('journal-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="journal-detail-body">Loading…</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('journal-detail-modal')">Close</button>
+      <button class="btn btn-danger" id="jd-void-btn" onclick="voidCurrentJournal()" style="display:none">Void Entry</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allJournals = [];
+let allAccounts = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let viewingJournalId = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('journals', 'Journal Entries');
+  initTabs('journals');
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('je-date').value = today;
+
+  await Promise.all([loadJournals(), loadAccountsForSelect()]);
+})();
+
+async function loadAccountsForSelect() {
+  const data = await api('GET', '/api/accounts');
+  if (!data) return;
+  allAccounts = data;
+
+  const ledgerSel = document.getElementById('ledger-account');
+  ledgerSel.innerHTML = '<option value="">— Select account —</option>' +
+    allAccounts.map(a => `<option value="${a.id}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+}
+
+async function loadJournals() {
+  const data = await api('GET', '/api/journals');
+  if (!data) return;
+  allJournals = Array.isArray(data) ? data : (data.items || data.journals || []);
+  currentPage = 1;
+  renderJournals();
+}
+
+function renderJournals() {
+  const search = (document.getElementById('je-search').value || '').toLowerCase();
+  const from   = document.getElementById('je-from').value;
+  const to     = document.getElementById('je-to').value;
+  const status = document.getElementById('je-status').value;
+
+  let rows = allJournals.filter(j => {
+    if (status && j.status !== status) return false;
+    if (from && j.date < from) return false;
+    if (to   && j.date > to)   return false;
+    if (search && !j.description?.toLowerCase().includes(search) &&
+        !j.entry_number?.toLowerCase().includes(search) &&
+        !j.reference?.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > pages) currentPage = pages;
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const paged = rows.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('journals-body');
+  if (!paged.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📓</div><div class="empty-title">No journal entries found</div></div></td></tr>';
+  } else {
+    tbody.innerHTML = paged.map(j => `<tr>
+      <td><strong>${esc(j.entry_number)}</strong></td>
+      <td>${dateStr(j.date)}</td>
+      <td>${esc(j.description)}</td>
+      <td>${esc(j.reference || '—')}</td>
+      <td class="r">${fmt(j.total_amount || j.amount || 0)}</td>
+      <td><span class="badge ${j.status}">${j.status}</span></td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="viewJournal(${j.id})">View</button>
+        ${j.status === 'posted' ? `<button class="btn btn-xs btn-danger" onclick="voidJournal(${j.id})" style="margin-left:4px">Void</button>` : ''}
+      </td>
+    </tr>`).join('');
+  }
+
+  renderPagination(total, pages);
+}
+
+function renderPagination(total, pages) {
+  const pg = document.getElementById('je-pagination');
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  let html = `<span class="page-info">Page ${currentPage} of ${pages} (${total} entries)</span>`;
+  if (currentPage > 1) html += `<button class="page-btn" onclick="goPage(${currentPage-1})">‹</button>`;
+  for (let i = Math.max(1, currentPage-2); i <= Math.min(pages, currentPage+2); i++) {
+    html += `<button class="page-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  if (currentPage < pages) html += `<button class="page-btn" onclick="goPage(${currentPage+1})">›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; renderJournals(); }
+
+function accountOptions(selectedId) {
+  return '<option value="">— Account —</option>' +
+    allAccounts.map(a => `<option value="${a.id}" ${a.id == selectedId ? 'selected':''}>${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+}
+
+function addJournalLine(debit = '', credit = '', accountId = '', desc = '') {
+  const tbody = document.getElementById('je-lines-body');
+  const idx = tbody.children.length;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><select class="je-line-account" onchange="updateTotals()">${accountOptions(accountId)}</select></td>
+    <td><input type="text" class="je-line-desc" value="${esc(desc)}" placeholder="Description…"></td>
+    <td><input type="number" class="je-line-dr" value="${debit}" min="0" step="0.01" placeholder="0.00" oninput="updateTotals()"></td>
+    <td><input type="number" class="je-line-cr" value="${credit}" min="0" step="0.01" placeholder="0.00" oninput="updateTotals()"></td>
+    <td><button style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px" onclick="removeLine(this)">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  updateTotals();
+}
+
+function removeLine(btn) {
+  btn.closest('tr').remove();
+  updateTotals();
+}
+
+function updateTotals() {
+  let dr = 0, cr = 0;
+  document.querySelectorAll('.je-line-dr').forEach(i => dr += parseFloat(i.value) || 0);
+  document.querySelectorAll('.je-line-cr').forEach(i => cr += parseFloat(i.value) || 0);
+  document.getElementById('je-total-dr').textContent = dr.toFixed(2);
+  document.getElementById('je-total-cr').textContent = cr.toFixed(2);
+  const ind = document.getElementById('je-balance-indicator');
+  const diff = Math.abs(dr - cr);
+  if (diff < 0.01) {
+    ind.textContent = 'Balanced ✓';
+    ind.style.color = 'var(--green)';
+  } else {
+    ind.textContent = `Unbalanced (diff: ${diff.toFixed(2)})`;
+    ind.style.color = 'var(--red)';
+  }
+}
+
+function openNewJournalModal() {
+  const errEl = document.getElementById('journal-modal-error');
+  errEl.style.display = 'none';
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('je-date').value = today;
+  document.getElementById('je-reference').value = '';
+  document.getElementById('je-description').value = '';
+  document.getElementById('je-lines-body').innerHTML = '';
+  addJournalLine();
+  addJournalLine();
+  updateTotals();
+  openModal('journal-modal');
+}
+
+async function saveJournal() {
+  const errEl = document.getElementById('journal-modal-error');
+  errEl.style.display = 'none';
+  const date = document.getElementById('je-date').value;
+  const description = document.getElementById('je-description').value.trim();
+  const reference = document.getElementById('je-reference').value.trim();
+
+  if (!date || !description) {
+    errEl.textContent = 'Date and description are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const lines = [];
+  const rows = document.querySelectorAll('#je-lines-body tr');
+  for (const row of rows) {
+    const accountId = row.querySelector('.je-line-account').value;
+    const desc = row.querySelector('.je-line-desc').value.trim();
+    const dr = parseFloat(row.querySelector('.je-line-dr').value) || 0;
+    const cr = parseFloat(row.querySelector('.je-line-cr').value) || 0;
+    if (!accountId) continue;
+    lines.push({ account_id: parseInt(accountId), description: desc, debit: dr, credit: cr });
+  }
+
+  if (lines.length < 2) {
+    errEl.textContent = 'At least 2 lines with accounts are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const totalDr = lines.reduce((s, l) => s + l.debit, 0);
+  const totalCr = lines.reduce((s, l) => s + l.credit, 0);
+  if (Math.abs(totalDr - totalCr) >= 0.01) {
+    errEl.textContent = `Entry is not balanced. Debits: ${totalDr.toFixed(2)}, Credits: ${totalCr.toFixed(2)}`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('je-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/journals', { date, description, reference: reference || null, lines });
+  btn.disabled = false;
+  if (!result) return;
+  toast('Journal entry posted', 'success');
+  closeModal('journal-modal');
+  await loadJournals();
+}
+
+async function viewJournal(id) {
+  const data = await api('GET', `/api/journals/${id}`);
+  if (!data) return;
+  viewingJournalId = id;
+  document.getElementById('jd-title').textContent = `Journal Entry — ${data.entry_number}`;
+  const voidBtn = document.getElementById('jd-void-btn');
+  voidBtn.style.display = data.status === 'posted' ? 'inline-flex' : 'none';
+
+  const lines = (data.lines || []).map(l => `<tr>
+    <td>${esc(l.account_code || '')} — ${esc(l.account_name || '')}</td>
+    <td>${esc(l.description || '')}</td>
+    <td class="r">${l.debit > 0 ? fmt(l.debit) : ''}</td>
+    <td class="r">${l.credit > 0 ? fmt(l.credit) : ''}</td>
+  </tr>`).join('');
+
+  const totalDr = (data.lines||[]).reduce((s,l)=>s+(l.debit||0),0);
+  const totalCr = (data.lines||[]).reduce((s,l)=>s+(l.credit||0),0);
+
+  document.getElementById('journal-detail-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Date</div><div style="font-weight:700">${dateStr(data.date)}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Reference</div><div style="font-weight:700">${esc(data.reference||'—')}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Status</div><div><span class="badge ${data.status}">${data.status}</span></div></div>
+    </div>
+    <div style="margin-bottom:16px"><strong>Description:</strong> ${esc(data.description)}</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Account</th><th>Description</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>
+        <tbody>
+          ${lines}
+          <tr style="background:#f7fafc;font-weight:700">
+            <td colspan="2">Totals</td>
+            <td class="r">${fmt(totalDr)}</td>
+            <td class="r">${fmt(totalCr)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+  openModal('journal-detail-modal');
+}
+
+async function voidJournal(id) {
+  if (!confirm('Void this journal entry? This cannot be undone.')) return;
+  const result = await api('POST', `/api/journals/${id}/void`);
+  if (!result) return;
+  toast('Journal entry voided', 'success');
+  await loadJournals();
+}
+
+async function voidCurrentJournal() {
+  if (!viewingJournalId) return;
+  closeModal('journal-detail-modal');
+  await voidJournal(viewingJournalId);
+}
+
+async function loadLedger() {
+  const accountId = document.getElementById('ledger-account').value;
+  const from = document.getElementById('ledger-from').value;
+  const to   = document.getElementById('ledger-to').value;
+
+  if (!accountId) { toast('Please select an account', 'error'); return; }
+
+  let url = `/api/ledger?account_id=${accountId}`;
+  if (from) url += `&date_from=${from}`;
+  if (to)   url += `&date_to=${to}`;
+
+  const data = await api('GET', url);
+  const tbody = document.getElementById('ledger-body');
+
+  // Backend returns {transactions:[...], opening_balance:0} or legacy plain array
+  const txns = Array.isArray(data) ? data : (data?.transactions || []);
+  if (!txns.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📒</div><div class="empty-title">No transactions found</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = txns.map(t => {
+    const balColor = (t.running_balance || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr>
+      <td>${dateStr(t.date)}</td>
+      <td><strong>${esc(t.entry_number)}</strong></td>
+      <td>${esc(t.description || t.entry_desc || '')}</td>
+      <td class="r">${(t.debit || 0) > 0 ? fmt(t.debit) : ''}</td>
+      <td class="r">${(t.credit || 0) > 0 ? fmt(t.credit) : ''}</td>
+      <td class="r" style="color:${balColor};font-weight:700">${fmt(t.running_balance || 0)}</td>
+    </tr>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

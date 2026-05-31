@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Financial Reports</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+<style>
+.report-header-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.report-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.report-controls input,.report-controls select{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px}
+.balanced-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.balanced-badge.ok{background:#f0fff4;color:var(--green)}
+.balanced-badge.fail{background:#fff5f5;color:var(--red)}
+.report-row{display:flex;justify-content:space-between;padding:7px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+.report-row:last-child{border-bottom:none}
+.report-row:hover{background:#f7fafc}
+.report-subtotal{display:flex;justify-content:space-between;padding:9px 14px;font-weight:700;background:#f7fafc;border-top:2px solid var(--border);border-radius:0 0 8px 8px}
+.aging-table th,.aging-table td{padding:10px 12px;font-size:13px}
+.aging-total-row{background:var(--navy);color:#fff;font-weight:700}
+.print-btn{display:inline-flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar" style="flex-wrap:wrap">
+    <button class="tab-btn" data-tab="reports"   onclick="switchTab('reports')">Trial Balance</button>
+    <button class="tab-btn" data-tab="income"    onclick="switchTab('income')">Income Statement</button>
+    <button class="tab-btn" data-tab="balance"   onclick="switchTab('balance')">Balance Sheet</button>
+    <button class="tab-btn" data-tab="cashflow"  onclick="switchTab('cashflow')">Cash Flow</button>
+    <button class="tab-btn" data-tab="ar-aging"  onclick="switchTab('ar-aging')">AR Aging</button>
+    <button class="tab-btn" data-tab="ap-aging"  onclick="switchTab('ap-aging')">AP Aging</button>
+  </div>
+
+  <!-- ── TRIAL BALANCE ──────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-reports">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Trial Balance</div>
+        <div class="report-controls">
+          <input type="date" id="tb-date">
+          <button class="btn btn-sm btn-primary" onclick="loadTrialBalance()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('tb-table','Trial Balance')">Print</button>
+        </div>
+      </div>
+      <div id="tb-balanced-indicator" style="margin-bottom:12px"></div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb-table">
+          <thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>
+          <tbody id="tb-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Select a date and run</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INCOME STATEMENT ───────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-income">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Income Statement</div>
+        <div class="report-controls">
+          <input type="date" id="is-from"><span style="color:var(--muted)">to</span>
+          <input type="date" id="is-to">
+          <button class="btn btn-sm btn-primary" onclick="loadIncomeStatement()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('is-content','Income Statement')">Print</button>
+        </div>
+      </div>
+      <div id="is-content"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">Select date range and run</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── BALANCE SHEET ──────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-balance">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Balance Sheet</div>
+        <div class="report-controls">
+          <input type="date" id="bs-date">
+          <button class="btn btn-sm btn-primary" onclick="loadBalanceSheet()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('bs-content','Balance Sheet')">Print</button>
+        </div>
+      </div>
+      <div id="bs-content"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Select a date and run</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── CASH FLOW ──────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-cashflow">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Cash Flow Statement</div>
+        <div class="report-controls">
+          <input type="date" id="cf-from"><span style="color:var(--muted)">to</span>
+          <input type="date" id="cf-to">
+          <button class="btn btn-sm btn-primary" onclick="loadCashFlow()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('cf-content','Cash Flow Statement')">Print</button>
+        </div>
+      </div>
+      <div id="cf-content"><div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Select date range and run</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── AR AGING ───────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-ar-aging">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Accounts Receivable Aging</div>
+        <div class="report-controls">
+          <input type="date" id="ar-date">
+          <button class="btn btn-sm btn-primary" onclick="loadARaging()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('ar-aging-content','AR Aging')">Print</button>
+        </div>
+      </div>
+      <div id="ar-aging-content"><div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-title">Select date and run</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── AP AGING ───────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-ap-aging">
+    <div class="section-card">
+      <div class="report-header-bar">
+        <div class="section-title">Accounts Payable Aging</div>
+        <div class="report-controls">
+          <input type="date" id="ap-date">
+          <button class="btn btn-sm btn-primary" onclick="loadAPaging()">Run</button>
+          <button class="btn btn-sm btn-outline print-btn" onclick="printReport('ap-aging-content','AP Aging')">Print</button>
+        </div>
+      </div>
+      <div id="ap-aging-content"><div class="empty-state"><div class="empty-icon">⌛</div><div class="empty-title">Select date and run</div></div></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('reports', 'Financial Reports');
+  initTabs('reports');
+
+  const today = new Date().toISOString().split('T')[0];
+  const firstOfMonth = today.substring(0,8) + '01';
+  document.getElementById('tb-date').value = today;
+  document.getElementById('is-from').value = firstOfMonth;
+  document.getElementById('is-to').value = today;
+  document.getElementById('bs-date').value = today;
+  document.getElementById('cf-from').value = firstOfMonth;
+  document.getElementById('cf-to').value = today;
+  document.getElementById('ar-date').value = today;
+  document.getElementById('ap-date').value = today;
+})();
+
+// ── TRIAL BALANCE ──────────────────────────────────────────────────────────────
+async function loadTrialBalance() {
+  const date = document.getElementById('tb-date').value;
+  let url = '/api/reports/trial-balance';
+  if (date) url += `?as_of=${date}`;
+  const data = await api('GET', url);
+  if (!data) return;
+
+  const rows = data.accounts || data.rows || data || [];
+  const totalDr = rows.reduce((s,r) => s+(r.debit||0), 0);
+  const totalCr = rows.reduce((s,r) => s+(r.credit||0), 0);
+  const balanced = Math.abs(totalDr - totalCr) < 0.01;
+
+  document.getElementById('tb-balanced-indicator').innerHTML =
+    `<span class="balanced-badge ${balanced?'ok':'fail'}">${balanced ? '✓ Balanced' : '✗ Not Balanced — diff: ' + fmt(Math.abs(totalDr-totalCr))}</span>`;
+
+  const tbody = document.getElementById('tb-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No data</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${esc(r.code)}</td>
+    <td>${esc(r.name)}</td>
+    <td><span class="badge ${r.type}">${r.type}</span></td>
+    <td class="r">${r.debit > 0 ? fmt(r.debit) : ''}</td>
+    <td class="r">${r.credit > 0 ? fmt(r.credit) : ''}</td>
+  </tr>`).join('') +
+  `<tr style="background:var(--navy);color:#fff;font-weight:700">
+    <td colspan="3">Totals</td>
+    <td class="r">${fmt(totalDr)}</td>
+    <td class="r">${fmt(totalCr)}</td>
+  </tr>`;
+}
+
+// ── INCOME STATEMENT ───────────────────────────────────────────────────────────
+async function loadIncomeStatement() {
+  const from = document.getElementById('is-from').value;
+  const to   = document.getElementById('is-to').value;
+  let url = '/api/reports/income-statement';
+  const params = [];
+  if (from) params.push(`date_from=${from}`);
+  if (to)   params.push(`date_to=${to}`);
+  if (params.length) url += '?' + params.join('&');
+  const data = await api('GET', url);
+  if (!data) return;
+
+  const rev = data.revenue || [];
+  const exp = data.expenses || [];
+  const totalRev = data.total_revenue ?? rev.reduce((s,r)=>s+(r.amount||0),0);
+  const totalExp = data.total_expenses ?? exp.reduce((s,r)=>s+(r.amount||0),0);
+  const netProfit = data.net_profit ?? (totalRev - totalExp);
+  const netColor = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const renderSection = (rows) => rows.map(r => `
+    <div class="report-row"><span>${esc(r.name)}</span><span>${fmt(r.amount||0)}</span></div>`).join('');
+
+  document.getElementById('is-content').innerHTML = `
+    <div class="report-section">
+      <div class="report-section-title">Revenue</div>
+      ${renderSection(rev)}
+      <div class="report-subtotal"><span>Total Revenue</span><span>${fmt(totalRev)}</span></div>
+    </div>
+    <div class="report-section">
+      <div class="report-section-title">Expenses</div>
+      ${renderSection(exp)}
+      <div class="report-subtotal"><span>Total Expenses</span><span>${fmt(totalExp)}</span></div>
+    </div>
+    <div class="report-total" style="background:${netColor}"><span>Net Profit / (Loss)</span><span>${fmt(netProfit)}</span></div>
+  `;
+}
+
+// ── BALANCE SHEET ──────────────────────────────────────────────────────────────
+async function loadBalanceSheet() {
+  const date = document.getElementById('bs-date').value;
+  let url = '/api/reports/balance-sheet';
+  if (date) url += `?as_of=${date}`;
+  const data = await api('GET', url);
+  if (!data) return;
+
+  const assets     = data.assets || [];
+  const liabs      = data.liabilities || [];
+  const equity     = data.equity || [];
+  const totalA     = data.total_assets ?? assets.reduce((s,r)=>s+(r.amount||0),0);
+  const totalL     = data.total_liabilities ?? liabs.reduce((s,r)=>s+(r.amount||0),0);
+  const totalE     = data.total_equity ?? equity.reduce((s,r)=>s+(r.amount||0),0);
+
+  const renderSection = (rows) => rows.map(r => `
+    <div class="report-row"><span>${esc(r.name)}</span><span>${fmt(r.amount||0)}</span></div>`).join('');
+
+  document.getElementById('bs-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">
+      <div>
+        <div class="report-section">
+          <div class="report-section-title">Assets</div>
+          ${renderSection(assets)}
+          <div class="report-subtotal"><span>Total Assets</span><span>${fmt(totalA)}</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="report-section">
+          <div class="report-section-title">Liabilities</div>
+          ${renderSection(liabs)}
+          <div class="report-subtotal"><span>Total Liabilities</span><span>${fmt(totalL)}</span></div>
+        </div>
+        <div class="report-section">
+          <div class="report-section-title">Equity</div>
+          ${renderSection(equity)}
+          <div class="report-subtotal"><span>Total Equity</span><span>${fmt(totalE)}</span></div>
+        </div>
+        <div class="report-total"><span>Total Liabilities + Equity</span><span>${fmt(totalL+totalE)}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+// ── CASH FLOW ──────────────────────────────────────────────────────────────────
+async function loadCashFlow() {
+  const from = document.getElementById('cf-from').value;
+  const to   = document.getElementById('cf-to').value;
+  let url = '/api/reports/cash-flow';
+  const params = [];
+  if (from) params.push(`date_from=${from}`);
+  if (to)   params.push(`date_to=${to}`);
+  if (params.length) url += '?' + params.join('&');
+  const data = await api('GET', url);
+  if (!data) return;
+
+  const operating = data.operating || [];
+  const investing = data.investing || [];
+  const financing = data.financing || [];
+  const netOp = data.net_operating ?? operating.reduce((s,r)=>s+(r.amount||0),0);
+  const netIn = data.net_investing ?? investing.reduce((s,r)=>s+(r.amount||0),0);
+  const netFi = data.net_financing ?? financing.reduce((s,r)=>s+(r.amount||0),0);
+  const netChange = data.net_change ?? (netOp+netIn+netFi);
+
+  const renderSection = (rows) => rows.map(r => `
+    <div class="report-row"><span>${esc(r.name||r.description)}</span><span style="color:${(r.amount||0)>=0?'var(--green)':'var(--red)'}">${fmt(r.amount||0)}</span></div>`).join('') || '<div class="report-row" style="color:var(--muted);font-style:italic;font-size:12px"><span>No items</span></div>';
+
+  document.getElementById('cf-content').innerHTML = `
+    <div class="report-section">
+      <div class="report-section-title">Operating Activities</div>
+      ${renderSection(operating)}
+      <div class="report-subtotal"><span>Net Operating Cash Flow</span><span style="color:${netOp>=0?'var(--green)':'var(--red)'}">${fmt(netOp)}</span></div>
+    </div>
+    <div class="report-section">
+      <div class="report-section-title">Investing Activities</div>
+      ${renderSection(investing)}
+      <div class="report-subtotal"><span>Net Investing Cash Flow</span><span style="color:${netIn>=0?'var(--green)':'var(--red)'}">${fmt(netIn)}</span></div>
+    </div>
+    <div class="report-section">
+      <div class="report-section-title">Financing Activities</div>
+      ${renderSection(financing)}
+      <div class="report-subtotal"><span>Net Financing Cash Flow</span><span style="color:${netFi>=0?'var(--green)':'var(--red)'}">${fmt(netFi)}</span></div>
+    </div>
+    <div class="report-total" style="background:${netChange>=0?'var(--green)':'var(--red)'}"><span>Net Change in Cash</span><span>${fmt(netChange)}</span></div>
+    ${data.closing_balance != null ? `<div style="text-align:right;margin-top:12px;font-size:14px;font-weight:700">Closing Cash Balance: <span style="color:var(--navy)">${fmt(data.closing_balance)}</span></div>` : ''}
+  `;
+}
+
+// ── AGING REPORTS ──────────────────────────────────────────────────────────────
+function renderAgingTable(rows, labelKey, contentId) {
+  if (!rows || !rows.length) {
+    document.getElementById(contentId).innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No outstanding balances</div></div>';
+    return;
+  }
+
+  const buckets = ['current','days_1_30','days_31_60','days_61_90','days_over_90'];
+  const labels  = ['Current','1-30 days','31-60 days','61-90 days','90+ days'];
+
+  const totals = {};
+  buckets.forEach(b => { totals[b] = rows.reduce((s,r)=>s+(r[b]||0),0); });
+  const grandTotal = rows.reduce((s,r)=>s+(r.total||r.balance_due||0),0);
+  const totalTotal = Object.values(totals).reduce((s,v)=>s+v,0);
+
+  const tableRows = rows.map(r => `<tr>
+    <td>${esc(r[labelKey]||r.name||r.customer_name||r.supplier_name||'')}</td>
+    ${buckets.map(b => `<td class="r">${r[b]>0?fmt(r[b]):''}</td>`).join('')}
+    <td class="r" style="font-weight:700">${fmt(r.total||r.balance_due||0)}</td>
+  </tr>`).join('');
+
+  const totalsRow = `<tr class="aging-total-row">
+    <td>TOTAL</td>
+    ${buckets.map(b => `<td class="r">${fmt(totals[b])}</td>`).join('')}
+    <td class="r">${fmt(grandTotal||totalTotal)}</td>
+  </tr>`;
+
+  document.getElementById(contentId).innerHTML = `
+    <div class="table-wrap">
+      <table class="data-table aging-table">
+        <thead><tr><th>Name</th>${labels.map(l=>`<th class="r">${l}</th>`).join('')}<th class="r">Total</th></tr></thead>
+        <tbody>${tableRows}${totalsRow}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function loadARaging() {
+  const date = document.getElementById('ar-date').value;
+  let url = '/api/reports/ar-aging';
+  if (date) url += `?as_of=${date}`;
+  const data = await api('GET', url);
+  if (!data) return;
+  const rows = Array.isArray(data) ? data : (data.customers || data.rows || []);
+  renderAgingTable(rows, 'customer_name', 'ar-aging-content');
+}
+
+async function loadAPaging() {
+  const date = document.getElementById('ap-date').value;
+  let url = '/api/reports/ap-aging';
+  if (date) url += `?as_of=${date}`;
+  const data = await api('GET', url);
+  if (!data) return;
+  const rows = Array.isArray(data) ? data : (data.suppliers || data.rows || []);
+  renderAgingTable(rows, 'supplier_name', 'ap-aging-content');
+}
+
+function printReport(contentId, title) {
+  const el = document.getElementById(contentId);
+  if (!el) return;
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
+    table{width:100%;border-collapse:collapse}th,td{padding:7px 10px;border:1px solid #ddd;text-align:left}
+    th{background:#1e3a5f;color:#fff}.r{text-align:right}h2{color:#1e3a5f;margin-bottom:16px}</style>
+    </head><body><h2>${title}</h2><p>Generated: ${new Date().toLocaleString()}</p>
+    ${el.innerHTML}</body></html>`);
+  w.document.close();
+  w.print();
+}
+</script>
+</body>
+</html>

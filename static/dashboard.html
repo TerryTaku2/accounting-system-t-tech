@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Dashboard</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<link rel="stylesheet" href="/static/shared.css">
+<style>
+/* ── CASH HERO ──────────────────────────────────────────────────────────────── */
+.cash-hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-lt) 60%,#2d6a9f 100%);
+  border-radius:var(--radius);padding:24px 28px;color:#fff;margin-bottom:16px;
+  display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}
+.cash-hero-left{}
+.cash-label{font-size:11px;font-weight:700;opacity:.55;text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:6px}
+.cash-amount{font-size:42px;font-weight:800;line-height:1;letter-spacing:-.02em;
+  background:linear-gradient(135deg,#fff 60%,#c8963e);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text}
+.cash-sub{font-size:12px;opacity:.6;margin-top:6px}
+.cash-accounts{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.cash-acct{background:rgba(255,255,255,.1);border-radius:8px;padding:7px 12px;font-size:12px}
+.cash-acct-name{opacity:.65;margin-bottom:2px}
+.cash-acct-val{font-weight:700}
+.cash-hero-right{text-align:right}
+.runway-ring{display:inline-flex;flex-direction:column;align-items:center;
+  background:rgba(255,255,255,.1);border-radius:12px;padding:14px 18px}
+.runway-val{font-size:32px;font-weight:800;line-height:1}
+.runway-lbl{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.runway-ok   {color:#68d391}
+.runway-warn {color:#f6e05e}
+.runway-crit {color:#fc8181}
+
+/* ── ALERTS ─────────────────────────────────────────────────────────────────── */
+.alert-strip{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.alert-pill{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;
+  font-size:12px;font-weight:700;cursor:default}
+.alert-pill.danger  {background:#fff5f5;color:var(--red);border:1px solid #fed7d7}
+.alert-pill.warning {background:#fffaf0;color:var(--yellow);border:1px solid #faf089}
+.alert-pill.info    {background:#ebf4ff;color:var(--blue);border:1px solid #bee3f8}
+.alert-pill.success {background:#f0fff4;color:var(--green);border:1px solid #c6f6d5}
+
+/* ── FORECAST CARD ─────────────────────────────────────────────────────────── */
+.forecast-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);
+  padding:20px 22px;margin-bottom:16px}
+.forecast-header{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.forecast-header-title{font-size:15px;font-weight:800;color:var(--text)}
+.horizon-btns{display:flex;gap:4px}
+.hbtn{padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;
+  background:#fff;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s}
+.hbtn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+.forecast-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.fkpi{background:var(--bg);border-radius:10px;padding:12px 14px}
+.fkpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:4px}
+.fkpi-val{font-size:20px;font-weight:800}
+.fkpi-in  .fkpi-val {color:var(--green)}
+.fkpi-out .fkpi-val {color:var(--red)}
+.fkpi-net .fkpi-val {}
+
+/* ── CHART ───────────────────────────────────────────────────────────────────── */
+.cf-chart-wrap{position:relative;height:120px;overflow:hidden}
+.cf-bars{display:flex;gap:1px;height:100%;align-items:flex-end;position:relative;
+  padding-bottom:18px}
+.cf-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;
+  position:relative;min-width:4px}
+.cf-col-in {background:rgba(56,161,105,.5);border-radius:2px 2px 0 0;flex-shrink:0}
+.cf-col-out{background:rgba(229,62,62,.35);border-radius:2px 2px 0 0;flex-shrink:0}
+.cf-col-today{background:rgba(200,150,62,.15);position:absolute;inset:0;top:auto;
+  border:1px solid var(--gold);border-radius:2px;pointer-events:none}
+.cf-svg{position:absolute;inset:0;pointer-events:none}
+.cf-date-row{display:flex;justify-content:space-between;font-size:10px;
+  color:var(--muted);margin-top:4px;padding:0 2px}
+.cf-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:6px}
+.cf-legend span{display:flex;align-items:center;gap:4px}
+.cf-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* ── UPCOMING GRID ───────────────────────────────────────────────────────────── */
+.upcoming-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.upcoming-section{background:#fff;border-radius:var(--radius);border:1px solid var(--border);
+  padding:16px 18px}
+.upcoming-title{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.upcoming-item{display:flex;justify-content:space-between;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.upcoming-item:last-child{border-bottom:none}
+.ui-party{font-weight:600;color:var(--text)}
+.ui-ref{font-size:11px;color:var(--muted)}
+.ui-date-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
+.due-today  {background:#fff5f5;color:var(--red)}
+.due-soon   {background:#fffaf0;color:var(--yellow)}
+.due-later  {background:#f0fff4;color:var(--green)}
+
+/* ── EXISTING KPIS ───────────────────────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:12px;margin-bottom:16px}
+.kpi-mini{background:#fff;border-radius:10px;padding:14px 16px;
+  border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.kpi-mini-lbl{font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.kpi-mini-val{font-size:20px;font-weight:800;color:var(--navy)}
+.kpi-mini-sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+@media(max-width:900px){
+  .cash-hero{grid-template-columns:1fr}
+  .cash-hero-right{text-align:left}
+  .forecast-kpis{grid-template-columns:1fr 1fr}
+  .upcoming-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .forecast-kpis{grid-template-columns:1fr}
+  .cash-amount{font-size:32px}
+}
+</style>
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+
+  <!-- ── CASH HERO ────────────────────────────────────────────────────────── -->
+  <div class="cash-hero" id="cash-hero">
+    <div class="cash-hero-left">
+      <div class="cash-label">💰 Current Cash Position</div>
+      <div class="cash-amount" id="hero-cash">—</div>
+      <div class="cash-sub" id="hero-cash-sub">Loading…</div>
+      <div class="cash-accounts" id="hero-accounts"></div>
+    </div>
+    <div class="cash-hero-right">
+      <div class="runway-ring">
+        <div class="runway-val" id="hero-runway">—</div>
+        <div class="runway-lbl">days runway</div>
+      </div>
+      <div style="font-size:10px;opacity:.5;margin-top:6px;text-align:center">
+        at current burn rate
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALERTS ────────────────────────────────────────────────────────────── -->
+  <div class="alert-strip" id="alert-strip"></div>
+
+  <!-- ── 30-DAY CASH FLOW FORECAST ────────────────────────────────────────── -->
+  <div class="forecast-card">
+    <div class="forecast-header">
+      <div class="forecast-header-title">📊 Cash Flow Forecast</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="cf-legend">
+          <span><div class="cf-legend-dot" style="background:rgba(56,161,105,.5)"></div> Expected In</span>
+          <span><div class="cf-legend-dot" style="background:rgba(229,62,62,.35)"></div> Expected Out</span>
+          <span><div class="cf-legend-dot" style="background:var(--navy);height:3px;border-radius:2px"></div> Balance</span>
+        </div>
+        <div class="horizon-btns">
+          <button class="hbtn active" onclick="setHorizon(7,this)">7d</button>
+          <button class="hbtn" onclick="setHorizon(30,this)">30d</button>
+          <button class="hbtn" onclick="setHorizon(60,this)">60d</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="forecast-kpis" id="forecast-kpis">
+      <div class="fkpi fkpi-in">
+        <div class="fkpi-lbl">📥 Expected In</div>
+        <div class="fkpi-val" id="fk-in">—</div>
+        <div style="font-size:11px;color:var(--muted)" id="fk-in-lbl">from outstanding invoices</div>
+      </div>
+      <div class="fkpi fkpi-out">
+        <div class="fkpi-lbl">📤 Expected Out</div>
+        <div class="fkpi-val" id="fk-out">—</div>
+        <div style="font-size:11px;color:var(--muted)" id="fk-out-lbl">from outstanding bills</div>
+      </div>
+      <div class="fkpi fkpi-net">
+        <div class="fkpi-lbl">🏁 Projected Balance</div>
+        <div class="fkpi-val" id="fk-proj">—</div>
+        <div style="font-size:11px;color:var(--muted)">end of period</div>
+      </div>
+    </div>
+
+    <div class="cf-chart-wrap" id="cf-chart-wrap">
+      <div class="cf-bars" id="cf-bars"></div>
+    </div>
+    <div class="cf-date-row" id="cf-date-row"></div>
+  </div>
+
+  <!-- ── UPCOMING PAYMENTS ─────────────────────────────────────────────────── -->
+  <div class="upcoming-grid">
+    <div class="upcoming-section">
+      <div class="upcoming-title">
+        <span style="color:var(--green)">📥</span> Money Coming In
+      </div>
+      <div id="upcoming-in">
+        <div class="empty-state" style="padding:16px"><div class="empty-icon" style="font-size:24px">✅</div>
+          <div class="empty-title" style="font-size:12px">No invoices due in this period</div></div>
+      </div>
+    </div>
+    <div class="upcoming-section">
+      <div class="upcoming-title">
+        <span style="color:var(--red)">📤</span> Money Going Out
+      </div>
+      <div id="upcoming-out">
+        <div class="empty-state" style="padding:16px"><div class="empty-icon" style="font-size:24px">✅</div>
+          <div class="empty-title" style="font-size:12px">No bills due in this period</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── P&L MINI KPIS ─────────────────────────────────────────────────────── -->
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi-mini"><div class="kpi-mini-lbl">This Month Revenue</div>
+      <div class="kpi-mini-val" id="kpi-rev">—</div></div>
+    <div class="kpi-mini"><div class="kpi-mini-lbl">This Month Expenses</div>
+      <div class="kpi-mini-val" id="kpi-exp">—</div></div>
+    <div class="kpi-mini"><div class="kpi-mini-lbl">Net Profit (Month)</div>
+      <div class="kpi-mini-val" id="kpi-net">—</div></div>
+    <div class="kpi-mini"><div class="kpi-mini-lbl">YTD Revenue</div>
+      <div class="kpi-mini-val" id="kpi-ytd">—</div></div>
+    <div class="kpi-mini"><div class="kpi-mini-lbl">Journal Entries</div>
+      <div class="kpi-mini-val" id="kpi-je">—</div>
+      <div class="kpi-mini-sub" id="kpi-acc-sub"></div></div>
+  </div>
+
+  <!-- ── RECENT JOURNALS ────────────────────────────────────────────────────── -->
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-title">📋 Recent Journal Entries</div>
+      <a href="/journals" class="btn btn-sm btn-outline">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Entry #</th><th>Date</th><th>Description</th>
+          <th class="r">Amount</th><th>Status</th></tr></thead>
+        <tbody id="recent-journals-body">
+          <tr><td colspan="5" class="empty-state">
+            <div class="empty-icon">📋</div><div class="empty-title">Loading…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let cfData   = null;
+let horizon  = 7;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('dashboard', 'Dashboard');
+  const [cf, dash] = await Promise.all([
+    api('GET', '/api/dashboard/cashflow?horizon=7'),
+    api('GET', '/api/dashboard'),
+  ]);
+  if (cf)   { cfData = cf; renderCashFlow(cf); }
+  if (dash) renderDashKPIs(dash);
+})();
+
+// ── Horizon toggle ────────────────────────────────────────────────────────────
+async function setHorizon(h, btn) {
+  horizon = h;
+  document.querySelectorAll('.hbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cf = await api('GET', `/api/dashboard/cashflow?horizon=${h}`);
+  if (cf) { cfData = cf; renderCashFlow(cf); }
+}
+
+// ── Render Cash Flow ──────────────────────────────────────────────────────────
+function renderCashFlow(d) {
+  const sym = S.symbol;
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  const cash = d.current_cash || 0;
+  document.getElementById('hero-cash').textContent = fmt(cash, sym);
+  document.getElementById('hero-cash-sub').textContent =
+    `Projected in ${d.horizon_days}d: ${fmt(d.projected_balance, sym)}`;
+
+  const accts = d.cash_accounts || [];
+  document.getElementById('hero-accounts').innerHTML = accts.length
+    ? accts.filter(a => Math.abs(a.balance) > 0.01).map(a => `
+        <div class="cash-acct">
+          <div class="cash-acct-name">${esc(a.name)}</div>
+          <div class="cash-acct-val">${fmt(a.balance, sym)}</div>
+        </div>`).join('')
+    : '';
+
+  // ── Runway ────────────────────────────────────────────────────────────────
+  const rd  = d.runway_days >= 999 ? '∞' : d.runway_days;
+  const rEl = document.getElementById('hero-runway');
+  rEl.textContent = rd;
+  rEl.className = 'runway-val ' + (
+    d.runway_days >= 90 ? 'runway-ok' :
+    d.runway_days >= 30 ? 'runway-warn' : 'runway-crit');
+
+  // ── Alerts ────────────────────────────────────────────────────────────────
+  const alertEl = document.getElementById('alert-strip');
+  const alerts  = d.alerts || [];
+  if (!alerts.length) {
+    alertEl.innerHTML = `<div class="alert-pill success">✅ Cash flow looks healthy — no immediate concerns</div>`;
+  } else {
+    alertEl.innerHTML = alerts.map(a =>
+      `<div class="alert-pill ${a.type}">${a.icon} ${esc(a.msg)}</div>`
+    ).join('');
+  }
+
+  // ── Forecast KPIs ─────────────────────────────────────────────────────────
+  const isH7 = horizon <= 7;
+  const ci = isH7 ? d.in_7d  : d.in_30d;
+  const co = isH7 ? d.out_7d : d.out_30d;
+  const cn = d.projected_balance;
+  document.getElementById('fk-in').textContent    = fmt(ci, sym);
+  document.getElementById('fk-out').textContent   = fmt(co, sym);
+  document.getElementById('fk-proj').textContent  = fmt(cn, sym);
+  document.getElementById('fk-proj').style.color  = cn >= cash ? 'var(--green)' : 'var(--red)';
+  document.getElementById('fk-in-lbl').textContent  = `from ${d.upcoming_receivables?.length || 0} invoices due`;
+  document.getElementById('fk-out-lbl').textContent = `from ${d.upcoming_payables?.length || 0} bills due`;
+
+  // ── Chart ─────────────────────────────────────────────────────────────────
+  renderChart(d.daily_forecast || [], d.current_cash, d.today);
+
+  // ── Upcoming ──────────────────────────────────────────────────────────────
+  renderUpcoming(d.upcoming_receivables || [], 'upcoming-in',  true);
+  renderUpcoming(d.upcoming_payables    || [], 'upcoming-out', false);
+}
+
+function renderChart(daily, startCash, today) {
+  if (!daily.length) return;
+  const barsEl    = document.getElementById('cf-bars');
+  const dateRow   = document.getElementById('cf-date-row');
+  const wrapEl    = document.getElementById('cf-chart-wrap');
+
+  const maxIn    = Math.max(...daily.map(d => d.cash_in),  0.01);
+  const maxOut   = Math.max(...daily.map(d => d.cash_out), 0.01);
+  const maxBar   = Math.max(maxIn, maxOut);
+  const balances = daily.map(d => d.balance);
+  const maxBal   = Math.max(...balances, startCash);
+  const minBal   = Math.min(...balances, startCash);
+  const balRange = (maxBal - minBal) || 1;
+  const CHART_H  = 100; // px for bars area (balance line is in full 120px)
+  const FULL_H   = 120;
+
+  // Bars HTML
+  barsEl.innerHTML = daily.map((d, i) => {
+    const inH  = Math.round(d.cash_in  / maxBar * CHART_H);
+    const outH = Math.round(d.cash_out / maxBar * CHART_H);
+    const isToday = d.date === today;
+    return `<div class="cf-col" style="${isToday ? 'background:rgba(200,150,62,.08);border-radius:3px' : ''}">
+      ${d.cash_in  > 0 ? `<div class="cf-col-in"  style="height:${inH}px"></div>` : '<div></div>'}
+      ${d.cash_out > 0 ? `<div class="cf-col-out" style="height:${outH}px"></div>` : ''}
+    </div>`;
+  }).join('');
+
+  // SVG balance line
+  const n     = daily.length;
+  const totalW = barsEl.scrollWidth || 600;
+  const colW   = totalW / n;
+  const points = daily.map((d, i) => {
+    const x = Math.round((i + 0.5) * colW);
+    const y = Math.round(FULL_H - 20 - ((d.balance - minBal) / balRange) * (FULL_H - 30));
+    return `${x},${y}`;
+  }).join(' ');
+
+  // Remove old SVG if any
+  const oldSvg = wrapEl.querySelector('.cf-svg');
+  if (oldSvg) oldSvg.remove();
+
+  // We build SVG after DOM settles
+  requestAnimationFrame(() => {
+    const tw = barsEl.offsetWidth || 600;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', tw);
+    svg.setAttribute('height', FULL_H);
+    svg.classList.add('cf-svg');
+    svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none';
+
+    const pts = daily.map((d, i) => {
+      const x = Math.round((i + 0.5) * (tw / n));
+      const y = Math.round(FULL_H - 20 - ((d.balance - minBal) / balRange) * (FULL_H - 34));
+      return `${x},${y}`;
+    }).join(' ');
+
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('fill', 'none');
+    poly.setAttribute('stroke', 'var(--navy)');
+    poly.setAttribute('stroke-width', '2');
+    poly.setAttribute('stroke-linejoin', 'round');
+    poly.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(poly);
+
+    // Zero line
+    if (minBal < 0) {
+      const zeroY = Math.round(FULL_H - 20 - (0 - minBal) / balRange * (FULL_H - 34));
+      const zl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      zl.setAttribute('x1', 0); zl.setAttribute('x2', tw);
+      zl.setAttribute('y1', zeroY); zl.setAttribute('y2', zeroY);
+      zl.setAttribute('stroke', 'var(--red)'); zl.setAttribute('stroke-dasharray', '4 3');
+      zl.setAttribute('stroke-width', '1'); zl.setAttribute('opacity', '.5');
+      svg.appendChild(zl);
+    }
+
+    wrapEl.appendChild(svg);
+  });
+
+  // Date labels (show every ~7 days)
+  const step = Math.ceil(daily.length / 5);
+  dateRow.innerHTML = daily
+    .filter((_, i) => i === 0 || i === daily.length - 1 || i % step === 0)
+    .map(d => `<span>${d.date.slice(5)}</span>`)
+    .join('');
+}
+
+function renderUpcoming(items, elId, isIncoming) {
+  const el  = document.getElementById(elId);
+  const today = new Date().toISOString().split('T')[0];
+  const sym = S.symbol;
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:16px">
+      <div class="empty-icon" style="font-size:24px">✅</div>
+      <div class="empty-title" style="font-size:12px">None due in this period</div></div>`;
+    return;
+  }
+  el.innerHTML = items.map(item => {
+    const due     = item.due_date || '';
+    const daysUntil = Math.round((new Date(due) - new Date(today)) / 86400000);
+    const cls     = daysUntil < 0 ? 'due-today' : daysUntil === 0 ? 'due-today' : daysUntil <= 3 ? 'due-soon' : 'due-later';
+    const lbl     = daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue`
+                  : daysUntil === 0 ? 'Due today'
+                  : daysUntil === 1 ? 'Due tomorrow'
+                  : `Due in ${daysUntil}d`;
+    return `<div class="upcoming-item">
+      <div>
+        <div class="ui-party">${esc(item.party || item.customer || item.supplier || '')}</div>
+        <div class="ui-ref">${esc(item.ref || item.invoice_number || item.bill_number || '')}</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        <div style="font-weight:700;color:${isIncoming?'var(--green)':'var(--red)'}">${fmt(item.balance_due, sym)}</div>
+        <div class="ui-date-badge ${cls}">${lbl}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render Standard KPIs ─────────────────────────────────────────────────────
+function renderDashKPIs(d) {
+  const sym = S.symbol;
+  document.getElementById('kpi-rev').textContent = fmt(d.month_revenue, sym);
+  document.getElementById('kpi-exp').textContent = fmt(d.month_expenses, sym);
+  const net = d.month_net || 0;
+  const netEl = document.getElementById('kpi-net');
+  netEl.textContent  = fmt(net, sym);
+  netEl.style.color  = net >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kpi-ytd').textContent     = fmt(d.ytd_revenue, sym);
+  document.getElementById('kpi-je').textContent      = (d.total_journals || 0).toLocaleString();
+  document.getElementById('kpi-acc-sub').textContent = `${d.total_accounts} accounts`;
+
+  const tbody = document.getElementById('recent-journals-body');
+  const rj    = d.recent_journals || [];
+  tbody.innerHTML = rj.length
+    ? rj.map(r => `<tr>
+        <td><strong>${esc(r.entry_number)}</strong></td>
+        <td>${dateStr(r.date)}</td>
+        <td>${esc(r.description)}</td>
+        <td class="r">${fmt(r.amount, sym)}</td>
+        <td><span class="badge ${r.status}">${r.status}</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No entries yet</div></td></tr>';
+}
+</script>
+</body>
+</html>

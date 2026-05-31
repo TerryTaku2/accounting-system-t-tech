@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Customers & AR</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')">Customers</button>
+    <button class="tab-btn" data-tab="invoices"  onclick="switchTab('invoices')">Invoices</button>
+    <button class="tab-btn" data-tab="receipts"  onclick="switchTab('receipts')">Receipts</button>
+  </div>
+
+  <!-- ── CUSTOMERS ──────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-customers">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Customers</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="cust-search" placeholder="Search…" oninput="renderCustomers()">
+          <button class="btn btn-sm btn-primary" onclick="openCustomerModal()">+ New Customer</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Currency</th><th class="r">Outstanding</th><th>Actions</th></tr></thead>
+          <tbody id="customers-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVOICES ───────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-invoices">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Invoices</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="inv-search" placeholder="Search…" oninput="renderInvoices()">
+          <select id="inv-status" onchange="renderInvoices()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="overdue">Overdue</option>
+            <option value="void">Void</option>
+          </select>
+          <select id="inv-customer-filter" onchange="renderInvoices()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Customers</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="openInvoiceModal()">+ New Invoice</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Due Date</th><th class="r">Total</th><th class="r">Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="invoices-body"><tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RECEIPTS ───────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-receipts">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Receipts</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="openReceiptModal()">+ New Receipt</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Receipt #</th><th>Customer</th><th>Invoice</th><th>Date</th><th class="r">Amount</th><th>Method</th></tr></thead>
+          <tbody id="receipts-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── CUSTOMER MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="cust-modal-title">New Customer</div>
+      <button class="modal-close" onclick="closeModal('customer-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="cust-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Customer Name *</label><input type="text" id="cust-name" placeholder="Full name or company"></div>
+        <div class="field"><label>Email</label><input type="email" id="cust-email" placeholder="email@example.com"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Phone</label><input type="text" id="cust-phone"></div>
+        <div class="field"><label>Currency</label><input type="text" id="cust-currency" placeholder="USD" maxlength="3"></div>
+      </div>
+      <div class="field"><label>Address</label><textarea id="cust-address" rows="2" placeholder="Street address…" style="resize:vertical"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>City</label><input type="text" id="cust-city"></div>
+        <div class="field"><label>Country</label><input type="text" id="cust-country"></div>
+      </div>
+      <div class="field"><label>Tax / VAT Number</label><input type="text" id="cust-tax-number" placeholder="Optional"></div>
+      <div class="field"><label>Payment Terms (days)</label><input type="number" id="cust-payment-terms" placeholder="30" min="0"></div>
+      <div class="field"><label>Notes</label><textarea id="cust-notes" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('customer-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomer()" id="cust-save-btn">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INVOICE MODAL ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Invoice</div>
+      <button class="modal-close" onclick="closeModal('invoice-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="inv-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Customer *</label><select id="inv-customer"><option value="">— Select —</option></select></div>
+        <div class="field"><label>Invoice Date *</label><input type="date" id="inv-date"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Due Date</label><input type="date" id="inv-due-date"></div>
+        <div class="field"><label>Reference</label><input type="text" id="inv-reference" placeholder="PO-001"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="inv-notes" rows="2" style="resize:vertical"></textarea></div>
+
+      <div style="margin:16px 0 8px;font-size:12px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.04em">Line Items</div>
+      <div class="table-wrap" style="margin-bottom:12px">
+        <table class="lines-table">
+          <thead><tr><th>Description</th><th style="min-width:160px">Account</th><th style="width:80px">Qty</th><th style="width:110px">Unit Price</th><th style="width:80px">Tax %</th><th style="width:100px">Amount</th><th style="width:36px"></th></tr></thead>
+          <tbody id="inv-lines-body"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="addInvLine()">+ Add Line</button>
+      <div class="totals-row" style="margin-top:12px">
+        <span>Subtotal: <strong id="inv-subtotal">0.00</strong></span>
+        <span>Tax: <strong id="inv-tax-total">0.00</strong></span>
+        <span>Total: <strong id="inv-total" style="color:var(--navy);font-size:15px">0.00</strong></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('invoice-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvoice()" id="inv-save-btn">Create Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INVOICE VIEW MODAL ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="invoice-view-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="inv-view-title">Invoice Detail</div>
+      <button class="modal-close" onclick="closeModal('invoice-view-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="invoice-view-body">Loading…</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('invoice-view-modal')">Close</button>
+      <button class="btn btn-outline" onclick="printInvoice()">Print</button>
+      <button class="btn btn-danger" id="inv-void-btn" onclick="voidCurrentInvoice()" style="display:none">Void</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RECEIPT MODAL ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="receipt-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Receipt</div>
+      <button class="modal-close" onclick="closeModal('receipt-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="receipt-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Customer *</label><select id="rec-customer" onchange="loadCustomerInvoices()"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Invoice (optional)</label><select id="rec-invoice"><option value="">— Select invoice —</option></select></div>
+      <div class="field-row">
+        <div class="field"><label>Date *</label><input type="date" id="rec-date"></div>
+        <div class="field"><label>Amount *</label><input type="number" id="rec-amount" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>Payment Method</label>
+        <select id="rec-method">
+          <option value="cash">Cash</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="card">Card</option>
+          <option value="mobile">Mobile Money</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Reference</label><input type="text" id="rec-reference" placeholder="Cheque #, Transaction ID…"></div>
+      <div class="field"><label>Notes</label><textarea id="rec-notes" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('receipt-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReceipt()" id="rec-save-btn">Record Receipt</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allCustomers = [];
+let allInvoices  = [];
+let allReceipts  = [];
+let allAccounts  = [];
+let editingCustomerId = null;
+let viewingInvoiceId  = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('customers', 'Customers & AR');
+  initTabs('customers');
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inv-date').value = today;
+  document.getElementById('rec-date').value = today;
+  await Promise.all([loadCustomers(), loadInvoices(), loadReceipts(), loadAccounts()]);
+})();
+
+async function loadAccounts() {
+  const data = await api('GET', '/api/accounts');
+  if (data) allAccounts = data;
+}
+
+async function loadCustomers() {
+  const data = await api('GET', '/api/customers');
+  if (!data) return;
+  allCustomers = Array.isArray(data) ? data : (data.customers || data.items || []);
+  renderCustomers();
+  populateCustomerSelects();
+}
+
+async function loadInvoices() {
+  const data = await api('GET', '/api/invoices');
+  if (!data) return;
+  allInvoices = Array.isArray(data) ? data : (data.invoices || data.items || []);
+  renderInvoices();
+}
+
+async function loadReceipts() {
+  const data = await api('GET', '/api/receipts');
+  if (!data) return;
+  allReceipts = Array.isArray(data) ? data : (data.receipts || data.items || []);
+  renderReceipts();
+}
+
+function populateCustomerSelects() {
+  const opts = allCustomers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  ['inv-customer','rec-customer'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = '<option value="">— Select —</option>' + opts;
+  });
+  const filterSel = document.getElementById('inv-customer-filter');
+  if (filterSel) filterSel.innerHTML = '<option value="">All Customers</option>' + opts;
+}
+
+function renderCustomers() {
+  const search = (document.getElementById('cust-search').value || '').toLowerCase();
+  let rows = allCustomers.filter(c =>
+    !search || c.name.toLowerCase().includes(search) || (c.email||'').toLowerCase().includes(search)
+  );
+  const tbody = document.getElementById('customers-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No customers found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(c => {
+    const bal = parseFloat(c.outstanding_balance||0);
+    return `<tr>
+      <td><strong>${esc(c.name)}</strong></td>
+      <td>${esc(c.email||'—')}</td>
+      <td>${esc(c.phone||'—')}</td>
+      <td>${esc(c.currency||'—')}</td>
+      <td class="r" style="color:${bal>0?'var(--red)':'var(--muted)'};font-weight:700">${fmt(bal)}</td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="editCustomer(${c.id})">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderInvoices() {
+  const search   = (document.getElementById('inv-search').value||'').toLowerCase();
+  const status   = document.getElementById('inv-status').value;
+  const custId   = document.getElementById('inv-customer-filter').value;
+  let rows = allInvoices.filter(i => {
+    if (status && i.status !== status) return false;
+    if (custId && String(i.customer_id) !== String(custId)) return false;
+    if (search && !i.invoice_number?.toLowerCase().includes(search) &&
+        !i.customer_name?.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('invoices-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(i => {
+    const overdue = i.status !== 'paid' && i.status !== 'void' && i.due_date && i.due_date < new Date().toISOString().split('T')[0];
+    return `<tr${overdue?' style="background:#fff5f5"':''}>
+      <td><strong>${esc(i.invoice_number)}</strong></td>
+      <td>${esc(i.customer_name||'')}</td>
+      <td>${dateStr(i.date)}</td>
+      <td style="${overdue?'color:var(--red);font-weight:700':''}">${dateStr(i.due_date)}</td>
+      <td class="r">${fmt(i.total_amount||0)}</td>
+      <td class="r" style="color:${(i.balance_due||0)>0?'var(--red)':'var(--green)'};font-weight:700">${fmt(i.balance_due||0)}</td>
+      <td><span class="badge ${i.status}">${i.status}</span></td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="viewInvoice(${i.id})">View</button>
+        ${i.status !== 'void' ? `<button class="btn btn-xs btn-danger" onclick="voidInvoice(${i.id})" style="margin-left:4px">Void</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderReceipts() {
+  const tbody = document.getElementById('receipts-body');
+  if (!allReceipts.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">No receipts yet</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allReceipts.map(r => `<tr>
+    <td><strong>${esc(r.receipt_number||r.reference||'—')}</strong></td>
+    <td>${esc(r.customer_name||'')}</td>
+    <td>${esc(r.invoice_number||'—')}</td>
+    <td>${dateStr(r.date)}</td>
+    <td class="r" style="color:var(--green);font-weight:700">${fmt(r.amount||0)}</td>
+    <td><span class="badge info">${esc(r.payment_method||r.method||'')}</span></td>
+  </tr>`).join('');
+}
+
+function openCustomerModal() {
+  editingCustomerId = null;
+  document.getElementById('cust-modal-title').textContent = 'New Customer';
+  ['cust-name','cust-email','cust-phone','cust-currency','cust-address','cust-city','cust-country','cust-tax-number','cust-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cust-payment-terms').value = '30';
+  document.getElementById('cust-modal-error').style.display = 'none';
+  openModal('customer-modal');
+}
+
+function editCustomer(id) {
+  const c = allCustomers.find(x => x.id === id);
+  if (!c) return;
+  editingCustomerId = id;
+  document.getElementById('cust-modal-title').textContent = 'Edit Customer';
+  document.getElementById('cust-name').value = c.name || '';
+  document.getElementById('cust-email').value = c.email || '';
+  document.getElementById('cust-phone').value = c.phone || '';
+  document.getElementById('cust-currency').value = c.currency || '';
+  document.getElementById('cust-address').value = c.address || '';
+  document.getElementById('cust-city').value = c.city || '';
+  document.getElementById('cust-country').value = c.country || '';
+  document.getElementById('cust-tax-number').value = c.tax_number || '';
+  document.getElementById('cust-payment-terms').value = c.payment_terms || 30;
+  document.getElementById('cust-notes').value = c.notes || '';
+  document.getElementById('cust-modal-error').style.display = 'none';
+  openModal('customer-modal');
+}
+
+async function saveCustomer() {
+  const errEl = document.getElementById('cust-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('cust-name').value.trim();
+  if (!name) { errEl.textContent = 'Customer name is required.'; errEl.style.display='block'; return; }
+  const payload = {
+    name,
+    email: document.getElementById('cust-email').value.trim() || null,
+    phone: document.getElementById('cust-phone').value.trim() || null,
+    currency: document.getElementById('cust-currency').value.trim() || null,
+    address: document.getElementById('cust-address').value.trim() || null,
+    city: document.getElementById('cust-city').value.trim() || null,
+    country: document.getElementById('cust-country').value.trim() || null,
+    tax_number: document.getElementById('cust-tax-number').value.trim() || null,
+    payment_terms: parseInt(document.getElementById('cust-payment-terms').value) || 30,
+    notes: document.getElementById('cust-notes').value.trim() || null,
+  };
+  const btn = document.getElementById('cust-save-btn');
+  btn.disabled = true;
+  const result = editingCustomerId
+    ? await api('PUT', `/api/customers/${editingCustomerId}`, payload)
+    : await api('POST', '/api/customers', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast(editingCustomerId ? 'Customer updated' : 'Customer created', 'success');
+  closeModal('customer-modal');
+  await loadCustomers();
+}
+
+// Invoice line items
+function invLineAccountOptions() {
+  return '<option value="">— Account —</option>' +
+    allAccounts.filter(a => a.type === 'revenue' || a.type === 'asset').map(a =>
+      `<option value="${a.id}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+}
+
+function addInvLine() {
+  const tbody = document.getElementById('inv-lines-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="inv-line-desc" placeholder="Description…" oninput="calcInvTotals()"></td>
+    <td><select class="inv-line-account">${invLineAccountOptions()}</select></td>
+    <td><input type="number" class="inv-line-qty" value="1" min="0" step="0.01" oninput="calcInvTotals()"></td>
+    <td><input type="number" class="inv-line-price" value="0" min="0" step="0.01" oninput="calcInvTotals()"></td>
+    <td><input type="number" class="inv-line-tax" value="0" min="0" max="100" step="0.01" oninput="calcInvTotals()"></td>
+    <td class="inv-line-amount r" style="font-weight:700">0.00</td>
+    <td><button style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px" onclick="this.closest('tr').remove();calcInvTotals()">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  calcInvTotals();
+}
+
+function calcInvTotals() {
+  let sub = 0, tax = 0;
+  document.querySelectorAll('#inv-lines-body tr').forEach(tr => {
+    const qty   = parseFloat(tr.querySelector('.inv-line-qty')?.value) || 0;
+    const price = parseFloat(tr.querySelector('.inv-line-price')?.value) || 0;
+    const taxR  = parseFloat(tr.querySelector('.inv-line-tax')?.value) || 0;
+    const lineAmt = qty * price;
+    sub += lineAmt;
+    tax += lineAmt * taxR / 100;
+    const amtEl = tr.querySelector('.inv-line-amount');
+    if (amtEl) amtEl.textContent = (lineAmt + lineAmt*taxR/100).toFixed(2);
+  });
+  document.getElementById('inv-subtotal').textContent = sub.toFixed(2);
+  document.getElementById('inv-tax-total').textContent = tax.toFixed(2);
+  document.getElementById('inv-total').textContent = (sub + tax).toFixed(2);
+}
+
+function openInvoiceModal() {
+  document.getElementById('inv-modal-error').style.display = 'none';
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inv-date').value = today;
+  document.getElementById('inv-due-date').value = '';
+  document.getElementById('inv-reference').value = '';
+  document.getElementById('inv-notes').value = '';
+  document.getElementById('inv-lines-body').innerHTML = '';
+  addInvLine();
+  calcInvTotals();
+  openModal('invoice-modal');
+}
+
+async function saveInvoice() {
+  const errEl = document.getElementById('inv-modal-error');
+  errEl.style.display = 'none';
+  const customer_id = document.getElementById('inv-customer').value;
+  const date = document.getElementById('inv-date').value;
+  if (!customer_id || !date) {
+    errEl.textContent = 'Customer and date are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const lines = [];
+  document.querySelectorAll('#inv-lines-body tr').forEach(tr => {
+    const description = tr.querySelector('.inv-line-desc')?.value.trim();
+    const account_id  = tr.querySelector('.inv-line-account')?.value;
+    const quantity    = parseFloat(tr.querySelector('.inv-line-qty')?.value) || 0;
+    const unit_price  = parseFloat(tr.querySelector('.inv-line-price')?.value) || 0;
+    const tax_rate    = parseFloat(tr.querySelector('.inv-line-tax')?.value) || 0;
+    if (description || quantity) lines.push({ description, account_id: account_id ? parseInt(account_id) : null, quantity, unit_price, tax_rate });
+  });
+  if (!lines.length) {
+    errEl.textContent = 'Add at least one line item.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const payload = {
+    customer_id: parseInt(customer_id),
+    date,
+    due_date: document.getElementById('inv-due-date').value || null,
+    reference: document.getElementById('inv-reference').value.trim() || null,
+    notes: document.getElementById('inv-notes').value.trim() || null,
+    lines,
+  };
+  const btn = document.getElementById('inv-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/invoices', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast('Invoice created', 'success');
+  closeModal('invoice-modal');
+  await loadInvoices();
+}
+
+async function viewInvoice(id) {
+  const inv = allInvoices.find(i => i.id === id);
+  if (!inv) return;
+  viewingInvoiceId = id;
+  document.getElementById('inv-view-title').textContent = `Invoice ${inv.invoice_number}`;
+  document.getElementById('inv-void-btn').style.display = inv.status !== 'void' ? 'inline-flex' : 'none';
+  const lines = (inv.lines || []).map(l => `<tr>
+    <td>${esc(l.description||'')}</td>
+    <td class="r">${l.quantity||1}</td>
+    <td class="r">${fmt(l.unit_price||0)}</td>
+    <td class="r">${(l.tax_rate||0)}%</td>
+    <td class="r">${fmt((l.quantity||1)*(l.unit_price||0)*(1+(l.tax_rate||0)/100))}</td>
+  </tr>`).join('');
+  document.getElementById('invoice-view-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Customer</div><div style="font-weight:700">${esc(inv.customer_name||'')}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Status</div><div><span class="badge ${inv.status}">${inv.status}</span></div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Date</div><div>${dateStr(inv.date)}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Due Date</div><div>${dateStr(inv.due_date)}</div></div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px">
+      <table class="data-table">
+        <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit Price</th><th class="r">Tax</th><th class="r">Amount</th></tr></thead>
+        <tbody>${lines}</tbody>
+      </table>
+    </div>
+    <div style="text-align:right">
+      <div>Subtotal: <strong>${fmt(inv.subtotal||0)}</strong></div>
+      <div>Tax: <strong>${fmt(inv.tax_amount||0)}</strong></div>
+      <div style="font-size:16px;font-weight:800;color:var(--navy);margin-top:8px">Total: ${fmt(inv.total_amount||0)}</div>
+      <div style="color:var(--red);font-weight:700">Balance Due: ${fmt(inv.balance_due||0)}</div>
+    </div>
+    ${inv.notes ? `<div style="margin-top:12px;padding:10px;background:#f7fafc;border-radius:8px;font-size:13px"><strong>Notes:</strong> ${esc(inv.notes)}</div>` : ''}
+  `;
+  openModal('invoice-view-modal');
+}
+
+let _invPrintData = null;
+function printInvoice() {
+  const inv = allInvoices.find(i => i.id === viewingInvoiceId);
+  if (!inv) return;
+  const w = window.open('', '_blank');
+  const lines = (inv.lines||[]).map(l => `<tr>
+    <td>${esc(l.description||'')}</td>
+    <td style="text-align:right">${l.quantity||1}</td>
+    <td style="text-align:right">${fmt(l.unit_price||0)}</td>
+    <td style="text-align:right">${(l.tax_rate||0)}%</td>
+    <td style="text-align:right">${fmt((l.quantity||1)*(l.unit_price||0)*(1+(l.tax_rate||0)/100))}</td>
+  </tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${inv.invoice_number}</title>
+    <style>body{font-family:Arial,sans-serif;padding:40px;font-size:12px;color:#1a202c}
+    .header{display:flex;justify-content:space-between;margin-bottom:30px}
+    .company{font-size:20px;font-weight:bold;color:#1e3a5f}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{padding:8px 12px;border:1px solid #e2e8f0;text-align:left}
+    th{background:#1e3a5f;color:#fff}.totals{text-align:right;margin-top:16px}
+    .total-line{font-size:16px;font-weight:bold;color:#1e3a5f}</style>
+    </head><body>
+    <div class="header">
+      <div><div class="company">${esc(S.company?.name||'T-Tech')}</div><div>Invoice</div></div>
+      <div style="text-align:right"><div style="font-size:22px;font-weight:bold;color:#1e3a5f">${esc(inv.invoice_number)}</div>
+        <div>Date: ${dateStr(inv.date)}</div><div>Due: ${dateStr(inv.due_date)}</div></div>
+    </div>
+    <div><strong>Bill To:</strong> ${esc(inv.customer_name||'')}</div>
+    <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Tax</th><th>Amount</th></tr></thead>
+    <tbody>${lines}</tbody></table>
+    <div class="totals">
+      <div>Subtotal: ${fmt(inv.subtotal||0)}</div>
+      <div>Tax: ${fmt(inv.tax_amount||0)}</div>
+      <div class="total-line">TOTAL: ${fmt(inv.total_amount||0)}</div>
+    </div></body></html>`);
+  w.document.close();
+  w.print();
+}
+
+async function voidInvoice(id) {
+  if (!confirm('Void this invoice? This cannot be undone.')) return;
+  const result = await api('POST', `/api/invoices/${id}/void`);
+  if (!result) return;
+  toast('Invoice voided', 'success');
+  await loadInvoices();
+}
+
+async function voidCurrentInvoice() {
+  if (!viewingInvoiceId) return;
+  closeModal('invoice-view-modal');
+  await voidInvoice(viewingInvoiceId);
+}
+
+// Receipts
+async function loadCustomerInvoices() {
+  const custId = document.getElementById('rec-customer').value;
+  const sel = document.getElementById('rec-invoice');
+  sel.innerHTML = '<option value="">— Select invoice —</option>';
+  if (!custId) return;
+  const invs = allInvoices.filter(i => String(i.customer_id) === String(custId) && i.status !== 'void' && i.status !== 'paid');
+  sel.innerHTML += invs.map(i => `<option value="${i.id}">${esc(i.invoice_number)} — ${fmt(i.balance_due||0)} due</option>`).join('');
+}
+
+function openReceiptModal() {
+  document.getElementById('receipt-modal-error').style.display = 'none';
+  document.getElementById('rec-customer').value = '';
+  document.getElementById('rec-invoice').innerHTML = '<option value="">— Select invoice —</option>';
+  document.getElementById('rec-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('rec-amount').value = '';
+  document.getElementById('rec-method').value = 'bank_transfer';
+  document.getElementById('rec-reference').value = '';
+  document.getElementById('rec-notes').value = '';
+  openModal('receipt-modal');
+}
+
+async function saveReceipt() {
+  const errEl = document.getElementById('receipt-modal-error');
+  errEl.style.display = 'none';
+  const customer_id = document.getElementById('rec-customer').value;
+  const date = document.getElementById('rec-date').value;
+  const amount = parseFloat(document.getElementById('rec-amount').value);
+  if (!customer_id || !date || !amount) {
+    errEl.textContent = 'Customer, date, and amount are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const invoice_id = document.getElementById('rec-invoice').value || null;
+  const payload = {
+    customer_id: parseInt(customer_id),
+    invoice_id: invoice_id ? parseInt(invoice_id) : null,
+    date, amount,
+    payment_method: document.getElementById('rec-method').value,
+    reference: document.getElementById('rec-reference').value.trim() || null,
+    notes: document.getElementById('rec-notes').value.trim() || null,
+  };
+  const btn = document.getElementById('rec-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/receipts', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast('Receipt recorded', 'success');
+  closeModal('receipt-modal');
+  await Promise.all([loadInvoices(), loadReceipts()]);
+}
+</script>
+</body>
+</html>

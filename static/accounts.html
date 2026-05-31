@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Chart of Accounts</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-title">Chart of Accounts</div>
+      <div class="section-actions">
+        <input type="text" class="search-input" id="acc-search" placeholder="Search accounts…" oninput="renderAccounts()">
+        <select id="acc-type-filter" onchange="renderAccounts()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <option value="">All Types</option>
+          <option value="asset">Asset</option>
+          <option value="liability">Liability</option>
+          <option value="equity">Equity</option>
+          <option value="revenue">Revenue</option>
+          <option value="expense">Expense</option>
+        </select>
+        <button class="btn btn-sm btn-outline" onclick="openNewAccount()">+ New Account</button>
+        <button class="btn btn-sm btn-gold" onclick="seedAccounts()">Seed Defaults</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th><th>Name</th><th>Type</th><th>Sub Type</th><th>Parent</th><th class="r">Balance</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="accounts-body">
+          <tr><td colspan="7" class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Loading…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- New / Edit Account Modal -->
+<div class="modal-overlay" id="account-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="account-modal-title">New Account</div>
+      <button class="modal-close" onclick="closeModal('account-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="account-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Account Code</label><input type="text" id="acc-code" placeholder="e.g. 1000"></div>
+        <div class="field"><label>Account Name</label><input type="text" id="acc-name" placeholder="e.g. Cash at Bank"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Type</label>
+          <select id="acc-type" onchange="updateSubTypes()">
+            <option value="">— Select type —</option>
+            <option value="asset">Asset</option>
+            <option value="liability">Liability</option>
+            <option value="equity">Equity</option>
+            <option value="revenue">Revenue</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sub Type</label>
+          <select id="acc-subtype"><option value="">— Select sub type —</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Parent Account (optional)</label>
+        <select id="acc-parent"><option value="">— None —</option></select>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="acc-description" rows="3" placeholder="Optional description…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('account-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAccount()" id="acc-save-btn">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allAccounts = [];
+let editingAccountId = null;
+
+const SUB_TYPES = {
+  asset:     ['current_asset','non_current_asset','cash_and_bank','accounts_receivable','inventory','prepayment','fixed_asset','other_asset'],
+  liability: ['current_liability','non_current_liability','accounts_payable','credit_card','tax_liability','other_liability'],
+  equity:    ['retained_earnings','owners_equity','common_stock','other_equity'],
+  revenue:   ['operating_revenue','other_income','interest_income'],
+  expense:   ['cost_of_goods_sold','operating_expense','depreciation','interest_expense','tax_expense','other_expense'],
+};
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('accounts', 'Chart of Accounts');
+  await loadAccounts();
+})();
+
+async function loadAccounts() {
+  const data = await api('GET', '/api/accounts');
+  if (!data) return;
+  allAccounts = data;
+  renderAccounts();
+}
+
+function renderAccounts() {
+  const search = (document.getElementById('acc-search').value || '').toLowerCase();
+  const typeFilter = document.getElementById('acc-type-filter').value;
+  let rows = allAccounts.filter(a => {
+    if (typeFilter && a.type !== typeFilter) return false;
+    if (search && !a.name.toLowerCase().includes(search) && !String(a.code).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('accounts-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">No accounts found</div><div class="empty-sub">Add accounts or use Seed Defaults</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(a => {
+    const bal = parseFloat(a.balance) || 0;
+    const balColor = bal > 0 ? 'var(--green)' : bal < 0 ? 'var(--red)' : 'var(--muted)';
+    const parent = allAccounts.find(p => p.id === a.parent_id);
+    return `<tr>
+      <td><strong>${esc(a.code)}</strong></td>
+      <td>${esc(a.name)}</td>
+      <td><span class="badge ${a.type}">${a.type}</span></td>
+      <td>${esc((a.sub_type||'').replace(/_/g,' '))}</td>
+      <td>${parent ? esc(parent.name) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="r" style="color:${balColor};font-weight:700">${fmt(bal)}</td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="openEditAccount(${a.id})">Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteAccount(${a.id})" style="margin-left:4px">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function updateSubTypes() {
+  const type = document.getElementById('acc-type').value;
+  const sel = document.getElementById('acc-subtype');
+  const opts = SUB_TYPES[type] || [];
+  sel.innerHTML = '<option value="">— Select sub type —</option>' +
+    opts.map(o => `<option value="${o}">${o.replace(/_/g,' ')}</option>`).join('');
+}
+
+function openNewAccount() {
+  editingAccountId = null;
+  document.getElementById('account-modal-title').textContent = 'New Account';
+  document.getElementById('acc-code').value = '';
+  document.getElementById('acc-name').value = '';
+  document.getElementById('acc-type').value = '';
+  document.getElementById('acc-subtype').innerHTML = '<option value="">— Select sub type —</option>';
+  document.getElementById('acc-description').value = '';
+  document.getElementById('account-modal-error').style.display = 'none';
+  populateParentSelect(null);
+  openModal('account-modal');
+}
+
+function openEditAccount(id) {
+  const a = allAccounts.find(x => x.id === id);
+  if (!a) return;
+  editingAccountId = id;
+  document.getElementById('account-modal-title').textContent = 'Edit Account';
+  document.getElementById('acc-code').value = a.code || '';
+  document.getElementById('acc-name').value = a.name || '';
+  document.getElementById('acc-type').value = a.type || '';
+  updateSubTypes();
+  document.getElementById('acc-subtype').value = a.sub_type || '';
+  document.getElementById('acc-description').value = a.description || '';
+  document.getElementById('account-modal-error').style.display = 'none';
+  populateParentSelect(a.parent_id);
+  openModal('account-modal');
+}
+
+function populateParentSelect(selectedId) {
+  const sel = document.getElementById('acc-parent');
+  sel.innerHTML = '<option value="">— None —</option>' +
+    allAccounts
+      .filter(a => a.id !== editingAccountId)
+      .map(a => `<option value="${a.id}" ${a.id == selectedId ? 'selected' : ''}>${esc(a.code)} — ${esc(a.name)}</option>`)
+      .join('');
+}
+
+async function saveAccount() {
+  const errEl = document.getElementById('account-modal-error');
+  errEl.style.display = 'none';
+  const code = document.getElementById('acc-code').value.trim();
+  const name = document.getElementById('acc-name').value.trim();
+  const type = document.getElementById('acc-type').value;
+  const sub_type = document.getElementById('acc-subtype').value;
+  const parent_id = document.getElementById('acc-parent').value || null;
+  const description = document.getElementById('acc-description').value.trim();
+
+  if (!code || !name || !type) {
+    errEl.textContent = 'Code, name, and type are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const payload = { code, name, type, sub_type: sub_type || null, parent_id: parent_id ? parseInt(parent_id) : null, description: description || null };
+  const btn = document.getElementById('acc-save-btn');
+  btn.disabled = true;
+
+  let result;
+  if (editingAccountId) {
+    result = await api('PUT', `/api/accounts/${editingAccountId}`, payload);
+  } else {
+    result = await api('POST', '/api/accounts', payload);
+  }
+  btn.disabled = false;
+  if (!result) return;
+  toast(editingAccountId ? 'Account updated' : 'Account created', 'success');
+  closeModal('account-modal');
+  await loadAccounts();
+}
+
+async function deleteAccount(id) {
+  const a = allAccounts.find(x => x.id === id);
+  if (!confirm(`Delete account "${a?.name}"? This cannot be undone.`)) return;
+  const result = await api('DELETE', `/api/accounts/${id}`);
+  if (result === null) return;
+  toast('Account deleted', 'success');
+  await loadAccounts();
+}
+
+async function seedAccounts() {
+  if (!confirm('Seed default chart of accounts? This will add standard accounts to your company.')) return;
+  const result = await api('POST', '/api/accounts/seed');
+  if (!result) return;
+  toast('Default accounts seeded successfully', 'success');
+  await loadAccounts();
+}
+</script>
+</body>
+</html>

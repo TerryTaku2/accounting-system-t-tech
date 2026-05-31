@@ -1,6 +1,24 @@
-const APP_CACHE = 'ttech-app-v2';
+const APP_CACHE = 'ttech-app-v5';
 const API_CACHE = 'ttech-api-v1';
-const SHELL     = ['/', '/manifest.json'];
+const SHELL = [
+  '/',
+  '/dashboard',
+  '/accounts',
+  '/journals',
+  '/reports',
+  '/customers',
+  '/suppliers',
+  '/banking',
+  '/reconciliation',
+  '/inventory',
+  '/payroll',
+  '/assets',
+  '/budgets',
+  '/settings',
+  '/manifest.json',
+  '/static/shared.css',
+  '/static/shared.js',
+];
 
 // ── Install ────────────────────────────────────────────────────────────────────
 self.addEventListener('install', e => {

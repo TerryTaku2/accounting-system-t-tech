@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Bank Accounts</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="kpi-grid" id="banking-kpis"></div>
+
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-title">Bank Accounts</div>
+      <div class="section-actions">
+        <button class="btn btn-sm btn-primary" onclick="openBankModal()">+ New Bank Account</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Account Name</th>
+            <th>Bank Name</th>
+            <th>Account Number</th>
+            <th>Currency</th>
+            <th>GL Account</th>
+            <th class="r">Balance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bank-accounts-body">
+          <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏦</div><div class="empty-title">Loading…</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- ── BANK ACCOUNT MODAL ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="bank-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="bank-modal-title">New Bank Account</div>
+      <button class="modal-close" onclick="closeModal('bank-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bank-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field">
+        <label>Account Name *</label>
+        <input type="text" id="bank-name" placeholder="e.g. Main Operating Account">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Bank Name *</label>
+          <input type="text" id="bank-bank-name" placeholder="e.g. First National Bank">
+        </div>
+        <div class="field">
+          <label>Account Number</label>
+          <input type="text" id="bank-account-number" placeholder="1234567890">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Currency</label>
+          <input type="text" id="bank-currency" placeholder="USD" maxlength="3">
+        </div>
+        <div class="field">
+          <label>Opening Balance</label>
+          <input type="number" id="bank-opening-balance" placeholder="0.00" step="0.01">
+        </div>
+      </div>
+      <div class="field">
+        <label>GL Account (Cash/Bank Account)</label>
+        <select id="bank-gl-account">
+          <option value="">— Select GL account —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Description / Notes</label>
+        <textarea id="bank-description" rows="2" placeholder="Optional notes…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bank-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBankAccount()" id="bank-save-btn">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allBankAccounts = [];
+let editingBankId = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('banking', 'Bank Accounts');
+  await Promise.all([loadBankAccounts(), populateGLAccounts()]);
+})();
+
+async function loadBankAccounts() {
+  const data = await api('GET', '/api/bank-accounts');
+  if (!data) return;
+  allBankAccounts = Array.isArray(data) ? data : (data.bank_accounts || data.items || []);
+  renderBankAccounts();
+  renderKPIs();
+}
+
+function renderKPIs() {
+  const totalBalance = allBankAccounts.reduce((s, b) => s + (parseFloat(b.balance) || 0), 0);
+  const positiveAccounts = allBankAccounts.filter(b => (parseFloat(b.balance)||0) > 0).length;
+  const kpiGrid = document.getElementById('banking-kpis');
+  kpiGrid.innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Bank Balance</div><div class="kpi-value" style="color:${totalBalance>=0?'var(--green)':'var(--red)'}">${fmt(totalBalance)}</div><div class="kpi-icon blue">🏦</div></div>
+    <div class="kpi-card"><div class="kpi-label">Bank Accounts</div><div class="kpi-value">${allBankAccounts.length}</div><div class="kpi-icon gold">📋</div></div>
+    <div class="kpi-card"><div class="kpi-label">Positive Balance Accounts</div><div class="kpi-value" style="color:var(--green)">${positiveAccounts}</div><div class="kpi-icon green">✅</div></div>
+  `;
+}
+
+function renderBankAccounts() {
+  const tbody = document.getElementById('bank-accounts-body');
+  if (!allBankAccounts.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏦</div><div class="empty-title">No bank accounts yet</div><div class="empty-sub">Add your first bank account to get started</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allBankAccounts.map(b => {
+    const bal = parseFloat(b.balance) || 0;
+    const balColor = bal >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr>
+      <td><strong>${esc(b.name)}</strong></td>
+      <td>${esc(b.bank_name || '—')}</td>
+      <td>${esc(b.account_number || '—')}</td>
+      <td>${esc(b.currency || S.symbol || 'USD')}</td>
+      <td>${esc(b.gl_account_name || b.gl_account_code || '—')}</td>
+      <td class="r" style="color:${balColor};font-weight:700">${fmt(bal)}</td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="editBankAccount(${b.id})">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function populateGLAccounts() {
+  const data = await api('GET', '/api/accounts');
+  if (!data) return;
+  const cashAccounts = data.filter(a =>
+    a.type === 'asset' && (
+      (a.sub_type || '').includes('cash') ||
+      (a.sub_type || '').includes('bank') ||
+      (a.name || '').toLowerCase().includes('cash') ||
+      (a.name || '').toLowerCase().includes('bank')
+    )
+  );
+  const relevant = cashAccounts.length ? cashAccounts : data.filter(a => a.type === 'asset');
+  const sel = document.getElementById('bank-gl-account');
+  sel.innerHTML = '<option value="">— Select GL account —</option>' +
+    relevant.map(a => `<option value="${a.id}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+}
+
+function openBankModal() {
+  editingBankId = null;
+  document.getElementById('bank-modal-title').textContent = 'New Bank Account';
+  document.getElementById('bank-name').value = '';
+  document.getElementById('bank-bank-name').value = '';
+  document.getElementById('bank-account-number').value = '';
+  document.getElementById('bank-currency').value = '';
+  document.getElementById('bank-opening-balance').value = '0';
+  document.getElementById('bank-gl-account').value = '';
+  document.getElementById('bank-description').value = '';
+  document.getElementById('bank-modal-error').style.display = 'none';
+  openModal('bank-modal');
+}
+
+function editBankAccount(id) {
+  const b = allBankAccounts.find(x => x.id === id);
+  if (!b) return;
+  editingBankId = id;
+  document.getElementById('bank-modal-title').textContent = 'Edit Bank Account';
+  document.getElementById('bank-name').value = b.name || '';
+  document.getElementById('bank-bank-name').value = b.bank_name || '';
+  document.getElementById('bank-account-number').value = b.account_number || '';
+  document.getElementById('bank-currency').value = b.currency || '';
+  document.getElementById('bank-opening-balance').value = b.opening_balance || 0;
+  document.getElementById('bank-gl-account').value = b.gl_account_id || '';
+  document.getElementById('bank-description').value = b.description || '';
+  document.getElementById('bank-modal-error').style.display = 'none';
+  openModal('bank-modal');
+}
+
+async function saveBankAccount() {
+  const errEl = document.getElementById('bank-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('bank-name').value.trim();
+  const bank_name = document.getElementById('bank-bank-name').value.trim();
+  if (!name || !bank_name) {
+    errEl.textContent = 'Account name and bank name are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const gl_account_id = document.getElementById('bank-gl-account').value;
+  const payload = {
+    name,
+    bank_name,
+    account_number: document.getElementById('bank-account-number').value.trim() || null,
+    currency: document.getElementById('bank-currency').value.trim() || null,
+    opening_balance: parseFloat(document.getElementById('bank-opening-balance').value) || 0,
+    gl_account_id: gl_account_id ? parseInt(gl_account_id) : null,
+    description: document.getElementById('bank-description').value.trim() || null,
+  };
+  const btn = document.getElementById('bank-save-btn');
+  btn.disabled = true;
+  let result;
+  if (editingBankId) {
+    result = await api('PUT', `/api/bank-accounts/${editingBankId}`, payload);
+  } else {
+    result = await api('POST', '/api/bank-accounts', payload);
+  }
+  btn.disabled = false;
+  if (!result) return;
+  toast(editingBankId ? 'Bank account updated' : 'Bank account created', 'success');
+  closeModal('bank-modal');
+  await loadBankAccounts();
+}
+</script>
+</body>
+</html>

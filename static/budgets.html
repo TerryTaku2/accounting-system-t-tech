@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Planning & Forecasting</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="budgets"   onclick="switchTab('budgets')">📊 Budgets</button>
+    <button class="tab-btn" data-tab="bva"        onclick="switchTab('bva')">📈 Budget vs Actual</button>
+    <button class="tab-btn" data-tab="forecast"   onclick="switchTab('forecast')">📉 Rolling Forecast</button>
+    <button class="tab-btn" data-tab="scenarios"  onclick="switchTab('scenarios')">🎯 Scenario Planning</button>
+  </div>
+
+  <!-- ── BUDGETS ──────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-budgets">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">📊 Annual Budget</div>
+        <div class="section-actions">
+          <select id="budget-year-sel" onchange="loadBudgets()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"></select>
+          <select id="budget-scenario-sel" onchange="loadBudgets()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="Base">Base</option>
+          </select>
+          <button class="btn btn-sm btn-outline" onclick="openBudgetModal()">+ Add Line</button>
+          <button class="btn btn-sm btn-outline" onclick="openCopyScenarioModal()">📋 Copy Scenario</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Click any cell to edit inline. Press Enter to save, Esc to cancel.</p>
+      <div id="budgets-content"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Select a year above</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── BUDGET VS ACTUAL ─────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-bva">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">📈 Budget vs Actual Variance</div>
+        <div class="section-actions">
+          <select id="bva-year-sel" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"></select>
+          <select id="bva-scenario-sel" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"><option value="Base">Base</option></select>
+          <button class="btn btn-sm btn-primary" onclick="loadBudgetReport()">Run Report</button>
+        </div>
+      </div>
+      <div id="bva-content"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">Select year and scenario, then click Run Report</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── ROLLING FORECAST ─────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-forecast">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">📉 Rolling Forecast</div>
+        <div class="section-actions">
+          <select id="rf-year-sel" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"></select>
+          <select id="rf-scenario-sel" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"><option value="Base">Base</option></select>
+          <button class="btn btn-sm btn-primary" onclick="loadRollingForecast()">Run</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        <strong style="color:var(--navy)">■</strong> Actual &nbsp;
+        <strong style="color:var(--blue)">■</strong> Budget &nbsp;
+        <strong style="color:var(--yellow)">■</strong> Forecast (extrapolated from YTD average)
+      </p>
+      <div id="rf-content"><div class="empty-state"><div class="empty-icon">📉</div><div class="empty-title">Select year and click Run</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── SCENARIO PLANNING ────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-scenarios">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">🎯 Scenario Planning</div>
+        <div class="section-actions">
+          <select id="sp-year-sel" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"></select>
+          <button class="btn btn-sm btn-primary" onclick="loadScenarioComparison()">Compare All</button>
+          <button class="btn btn-sm btn-outline" onclick="openCopyScenarioModal()">+ New Scenario</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        Create scenarios (Best Case, Worst Case) by copying the Base budget with a multiplier. Then compare them side-by-side against actuals.
+      </p>
+      <div id="sp-content"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Select a year and click Compare</div></div></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── MODALS ───────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="budget-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Add Budget Line</div><button class="modal-close" onclick="closeModal('budget-modal')">✕</button></div>
+    <div class="modal-body">
+      <div id="budget-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Account *</label><select id="bm-account"></select></div>
+      <div class="field-row">
+        <div class="field"><label>Year *</label><input type="number" id="bm-year" min="2020" max="2040"></div>
+        <div class="field"><label>Month *</label>
+          <select id="bm-month">
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Amount *</label><input type="number" id="bm-amount" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="field"><label>Notes</label><input type="text" id="bm-notes" placeholder="Optional"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('budget-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBudget()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="copy-scenario-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Create / Copy Scenario</div><button class="modal-close" onclick="closeModal('copy-scenario-modal')">✕</button></div>
+    <div class="modal-body">
+      <div id="copy-scenario-error" class="error-msg" style="display:none"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Copy a scenario's amounts into a new one, applying a multiplier. E.g. Base × 1.20 = "Best Case +20%".</p>
+      <div class="field"><label>Year *</label><select id="cs-year" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px"></select></div>
+      <div class="field"><label>Copy From *</label><select id="cs-from" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px"></select></div>
+      <div class="field"><label>New Scenario Name *</label><input type="text" id="cs-to" placeholder="e.g. Best Case, Worst Case"></div>
+      <div class="field">
+        <label>Multiplier</label>
+        <input type="number" id="cs-multiplier" value="1.0" min="0.01" step="0.05">
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-xs btn-outline" onclick="document.getElementById('cs-multiplier').value=0.8">0.8 (−20%)</button>
+          <button class="btn btn-xs btn-outline" onclick="document.getElementById('cs-multiplier').value=0.9">0.9 (−10%)</button>
+          <button class="btn btn-xs btn-outline" onclick="document.getElementById('cs-multiplier').value=1.0">1.0 (Same)</button>
+          <button class="btn btn-xs btn-outline" onclick="document.getElementById('cs-multiplier').value=1.1">1.1 (+10%)</button>
+          <button class="btn btn-xs btn-outline" onclick="document.getElementById('cs-multiplier').value=1.2">1.2 (+20%)</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('copy-scenario-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="copyScenario()">Create Scenario</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('budgets', 'Planning & Forecasting');
+
+  yearOptions('budget-year-sel'); yearOptions('bva-year-sel');
+  yearOptions('rf-year-sel'); yearOptions('sp-year-sel');
+
+  const hash = location.hash.replace('#','') || 'budgets';
+  switchTab(hash);
+  window.addEventListener('hashchange', () => switchTab(location.hash.replace('#','')));
+
+  if (hash === 'budgets' || !hash) loadBudgets();
+})();
+
+function switchTab(id) {
+  const valid = ['budgets','bva','forecast','scenarios'];
+  const tab = valid.includes(id) ? id : 'budgets';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+  history.replaceState(null, '', '#' + tab);
+}
+
+// ── Scenario helpers ──────────────────────────────────────────────────────────
+async function refreshScenarios(year, selId) {
+  const rows = await api('GET', `/api/budget-scenarios?year=${year}`);
+  const sel  = document.getElementById(selId);
+  if (!sel) return;
+  const cur  = sel.value;
+  sel.innerHTML = '<option value="Base">Base</option>' +
+    (rows||[]).filter(r => r.scenario !== 'Base')
+      .map(r => `<option value="${esc(r.scenario)}">${esc(r.scenario)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+// ── Budgets inline grid ───────────────────────────────────────────────────────
+async function loadBudgets() {
+  const year     = document.getElementById('budget-year-sel').value;
+  const scenario = document.getElementById('budget-scenario-sel').value || 'Base';
+  await refreshScenarios(year, 'budget-scenario-sel');
+  document.getElementById('budget-scenario-sel').value = scenario;
+  const rows = await api('GET', `/api/budgets?year=${year}&scenario=${encodeURIComponent(scenario)}`);
+  if (!rows) return;
+  const sym = S.symbol;
+  const el  = document.getElementById('budgets-content');
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No budget for ${year} — ${esc(scenario)}</div>
+      <div class="empty-sub">Click "+ Add Line" to add accounts, or "📋 Copy Scenario" to duplicate an existing budget.</div></div>`;
+    return;
+  }
+  const byAcc = {};
+  rows.forEach(r => {
+    if (!byAcc[r.account_id]) byAcc[r.account_id] = { code: r.account_code, name: r.account_name, type: r.account_type, months: {} };
+    byAcc[r.account_id].months[r.month] = r.amount;
+  });
+  const typeCls = { revenue: 'success', expense: 'danger' };
+  el.innerHTML = `<div class="table-wrap" style="overflow-x:auto">
+    <table class="data-table" style="min-width:900px">
+      <thead><tr style="background:var(--navy);color:#fff">
+        <th style="color:#fff;text-align:left">Account</th>
+        ${MONTHS.map(m=>`<th style="color:#fff;text-align:right">${m}</th>`).join('')}
+        <th style="color:#fff;text-align:right">Annual</th>
+      </tr></thead>
+      <tbody>${Object.entries(byAcc).map(([aid, acc]) => {
+        const annual = Object.values(acc.months).reduce((s,v)=>s+(v||0),0);
+        return `<tr>
+          <td><span class="badge ${typeCls[acc.type]||'info'}" style="font-size:10px;margin-right:6px">${acc.type}</span><strong>${esc(acc.code)}</strong> ${esc(acc.name)}</td>
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>{
+            const amt = acc.months[m]; const disp = amt != null ? amt.toFixed(2) : '';
+            return `<td style="padding:4px 6px">
+              <input type="number" min="0" step="0.01" placeholder="—" value="${disp}"
+                data-aid="${aid}" data-month="${m}" data-year="${year}" data-scenario="${esc(scenario)}"
+                style="width:80px;text-align:right;padding:4px 6px;border:1px solid transparent;border-radius:6px;font-size:12px;background:transparent"
+                onfocus="this.style.border='1px solid var(--navy)';this.style.background='#fff'"
+                onblur="saveBudgetCell(this)"
+                onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value='${disp}';this.blur()}">
+            </td>`;
+          }).join('')}
+          <td style="text-align:right;font-weight:700;padding:4px 8px">${fmt(annual,sym)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+async function saveBudgetCell(input) {
+  input.style.border = '1px solid transparent';
+  input.style.background = 'transparent';
+  const amount = parseFloat(input.value);
+  if (isNaN(amount) || amount < 0) { input.value = ''; return; }
+  const body = { account_id: parseInt(input.dataset.aid), year: parseInt(input.dataset.year),
+                 month: parseInt(input.dataset.month), amount, scenario: input.dataset.scenario };
+  const res = await api('POST', '/api/budgets', body);
+  if (res) { input.style.background='#f0fff4'; setTimeout(()=>input.style.background='transparent',800); }
+}
+
+async function openBudgetModal() {
+  const errEl = document.getElementById('budget-modal-error');
+  errEl.style.display = 'none';
+  const year = parseInt(document.getElementById('budget-year-sel').value) || new Date().getFullYear();
+  const scenario = document.getElementById('budget-scenario-sel').value || 'Base';
+  document.getElementById('bm-year').value  = year;
+  document.getElementById('bm-month').value = new Date().getMonth() + 1;
+  document.getElementById('bm-amount').value = '';
+  document.getElementById('bm-notes').value  = '';
+  document.getElementById('budget-modal').dataset.scenario = scenario;
+  await populateAccountSelect('bm-account', ['revenue','expense']);
+  openModal('budget-modal');
+}
+
+async function saveBudget() {
+  const errEl = document.getElementById('budget-modal-error');
+  errEl.style.display = 'none';
+  const scenario = document.getElementById('budget-modal').dataset.scenario || 'Base';
+  const body = {
+    account_id: parseInt(document.getElementById('bm-account').value),
+    year:       parseInt(document.getElementById('bm-year').value),
+    month:      parseInt(document.getElementById('bm-month').value),
+    amount:     parseFloat(document.getElementById('bm-amount').value) || 0,
+    scenario,
+    notes: document.getElementById('bm-notes').value.trim() || null,
+  };
+  if (!body.account_id) { errEl.textContent='Select an account'; errEl.style.display='block'; return; }
+  const res = await api('POST', '/api/budgets', body);
+  if (res) { closeModal('budget-modal'); toast('Budget line added', 'success'); loadBudgets(); }
+}
+
+// ── Budget vs Actual ──────────────────────────────────────────────────────────
+async function loadBudgetReport() {
+  const year     = document.getElementById('bva-year-sel').value;
+  const scenario = document.getElementById('bva-scenario-sel').value || 'Base';
+  await refreshScenarios(year, 'bva-scenario-sel');
+  document.getElementById('bva-scenario-sel').value = scenario;
+  const d = await api('GET', `/api/reports/budget-vs-actual?year=${year}&scenario=${encodeURIComponent(scenario)}`);
+  if (!d) return;
+  const sym = S.symbol;
+  const el  = document.getElementById('bva-content');
+  if (!d.rows.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">No data for this year/scenario</div></div>'; return; }
+  const revRows = d.rows.filter(r=>r.type==='revenue');
+  const expRows = d.rows.filter(r=>r.type==='expense');
+  const sum = (arr,f) => arr.reduce((s,r)=>s+(r[f]||0),0);
+  const aRev=sum(revRows,'total_actual'),bRev=sum(revRows,'total_budget');
+  const aExp=sum(expRows,'total_actual'),bExp=sum(expRows,'total_budget');
+  const net=aRev-aExp;
+  const kpis=[['Budget Revenue',fmt(bRev,sym),'navy'],['Actual Revenue',fmt(aRev,sym),'green'],
+              ['Budget Expenses',fmt(bExp,sym),'navy'],['Actual Expenses',fmt(aExp,sym),'red'],
+              ['Net Profit',fmt(net,sym),net>=0?'green':'red']];
+  const renderRows = rows => rows.map(r=>{
+    const vc=r.total_variance>=0?'success':'danger';
+    const vp=r.total_budget?Math.round(r.total_variance/r.total_budget*100):0;
+    return `<tr><td><strong>${esc(r.code)}</strong> ${esc(r.name)}</td>
+      <td class="r">${fmt(r.total_budget,sym)}</td>
+      <td class="r">${fmt(r.total_actual,sym)}</td>
+      <td class="r"><span class="badge ${vc}">${r.total_variance>=0?'+':''}${fmt(r.total_variance,sym)} (${vp}%)</span></td></tr>`;
+  }).join('');
+  el.innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    ${kpis.map(([l,v,c])=>`<div style="flex:1;min-width:130px;background:var(--bg);padding:12px 16px;border-radius:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">${l}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--${c})">${v}</div>
+    </div>`).join('')}</div>
+  <div class="report-section"><div class="report-section-title">Revenue — ${esc(scenario)}</div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th class="r">Budget</th><th class="r">Actual</th><th class="r">Variance</th></tr></thead>
+  <tbody>${renderRows(revRows)||'<tr><td colspan="4" class="empty-state"><div class="empty-title">No entries</div></td></tr>'}</tbody></table></div></div>
+  <div class="report-section"><div class="report-section-title">Expenses — ${esc(scenario)}</div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th class="r">Budget</th><th class="r">Actual</th><th class="r">Variance</th></tr></thead>
+  <tbody>${renderRows(expRows)||'<tr><td colspan="4" class="empty-state"><div class="empty-title">No entries</div></td></tr>'}</tbody></table></div></div>`;
+}
+
+// ── Rolling Forecast ──────────────────────────────────────────────────────────
+async function loadRollingForecast() {
+  const year     = document.getElementById('rf-year-sel').value;
+  const scenario = document.getElementById('rf-scenario-sel').value || 'Base';
+  await refreshScenarios(year, 'rf-scenario-sel');
+  document.getElementById('rf-scenario-sel').value = scenario;
+  const d = await api('GET', `/api/reports/rolling-forecast?year=${year}&scenario=${encodeURIComponent(scenario)}`);
+  if (!d) return;
+  const sym = S.symbol; const curM = d.current_month;
+  const el  = document.getElementById('rf-content');
+  if (!d.rows.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">📉</div><div class="empty-title">No data</div></div>'; return; }
+  const revRows=d.rows.filter(r=>r.type==='revenue');
+  const expRows=d.rows.filter(r=>r.type==='expense');
+  const ytdR=revRows.reduce((s,r)=>s+r.total_ytd,0), fR=revRows.reduce((s,r)=>s+r.full_year_forecast,0);
+  const ytdE=expRows.reduce((s,r)=>s+r.total_ytd,0), fE=expRows.reduce((s,r)=>s+r.full_year_forecast,0);
+  const typeBg={actual:'var(--navy)',budget:'var(--blue)',forecast:'var(--yellow)'};
+  const typeColor={actual:'#fff',budget:'#fff',forecast:'#1a202c'};
+  const renderSec=(title,rows)=>`<div class="report-section"><div class="report-section-title">${title}</div>
+    <div class="table-wrap" style="overflow-x:auto"><table class="data-table" style="min-width:900px">
+    <thead><tr style="background:var(--navy);color:#fff"><th style="color:#fff">Account</th>
+    ${MONTHS.map((m,i)=>`<th style="color:#fff;font-size:11px;text-align:right">${m}${i<curM?'*':''}</th>`).join('')}
+    <th style="color:#fff;text-align:right">YTD</th><th style="color:#fff;text-align:right">Full Year</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td><strong>${esc(r.code)}</strong> ${esc(r.name)}</td>
+      ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>{
+        const cell=r.months[m]; if(!cell) return '<td class="r">—</td>';
+        return `<td class="r"><span style="background:${typeBg[cell.type]};color:${typeColor[cell.type]};padding:2px 4px;border-radius:4px;font-size:11px">${cell.value>0?fmt(cell.value,sym):'—'}</span></td>`;
+      }).join('')}
+      <td class="r" style="font-weight:700">${fmt(r.total_ytd,sym)}</td>
+      <td class="r" style="font-weight:800;color:var(--navy)">${fmt(r.full_year_forecast,sym)}</td>
+    </tr>`).join('')}</tbody></table></div></div>`;
+  el.innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    ${[['YTD Revenue',fmt(ytdR,sym),'navy'],['Full-Year Rev.',fmt(fR,sym),'green'],
+       ['YTD Expenses',fmt(ytdE,sym),'navy'],['Full-Year Exp.',fmt(fE,sym),'red'],
+       ['Forecast Profit',fmt(fR-fE,sym),fR-fE>=0?'green':'red']
+      ].map(([l,v,c])=>`<div style="flex:1;min-width:130px;background:var(--bg);padding:12px 16px;border-radius:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">${l}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--${c})">${v}</div>
+      </div>`).join('')}</div>
+  ${renderSec('Revenue',revRows)}${renderSec('Expenses',expRows)}
+  <p style="font-size:11px;color:var(--muted);margin-top:8px">* Past months = posted actuals. Future months with budget = budget value. Future without budget = rolling YTD average.</p>`;
+}
+
+// ── Scenario comparison ───────────────────────────────────────────────────────
+async function loadScenarioComparison() {
+  const year = document.getElementById('sp-year-sel').value;
+  const d    = await api('GET', `/api/reports/scenario-comparison?year=${year}`);
+  if (!d) return;
+  const sym  = S.symbol;
+  const el   = document.getElementById('sp-content');
+  if (!d.scenarios.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎯</div>
+      <div class="empty-title">No scenarios for ${year}</div>
+      <div class="empty-sub">Enter a Base budget then click "+ New Scenario" to create variants.</div></div>`;
+    return;
+  }
+  const revRows=d.rows.filter(r=>r.type==='revenue');
+  const expRows=d.rows.filter(r=>r.type==='expense');
+  const hdr=`<th>Account</th><th class="r">Actual</th>${d.scenarios.map(s=>`<th class="r">${esc(s)}</th>`).join('')}`;
+  const renderSec=(title,rows)=>`<div class="report-section"><div class="report-section-title">${title}</div>
+    <div class="table-wrap"><table class="data-table"><thead><tr>${hdr}</tr></thead>
+    <tbody>${rows.map(r=>{
+      const sCols=d.scenarios.map(s=>{
+        const v=r[s]||0; const diff=v-(r.actual||0);
+        return `<td class="r">${fmt(v,sym)}${diff?`<small style="color:${diff>0?'var(--green)':'var(--red)'}"> (${diff>0?'+':''}${fmt(diff,sym)})</small>`:''}`;
+      }).join('');
+      return `<tr><td><strong>${esc(r.code)}</strong> ${esc(r.name)}</td><td class="r" style="font-weight:700">${fmt(r.actual||0,sym)}</td>${sCols}</tr>`;
+    }).join('')}
+    <tr style="font-weight:800;background:var(--bg);border-top:2px solid var(--border)">
+      <td>Total</td><td class="r">${fmt(rows.reduce((s,r)=>s+(r.actual||0),0),sym)}</td>
+      ${d.scenarios.map(s=>`<td class="r">${fmt(rows.reduce((t,r)=>t+(r[s]||0),0),sym)}</td>`).join('')}
+    </tr></tbody></table></div></div>`;
+  el.innerHTML=`<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Comparing ${d.scenarios.length} scenario(s) for ${year}. Differences shown vs Actual.</p>
+    ${renderSec('Revenue',revRows)}${renderSec('Expenses',expRows)}`;
+}
+
+// ── Copy scenario modal ───────────────────────────────────────────────────────
+async function openCopyScenarioModal() {
+  document.getElementById('copy-scenario-error').style.display = 'none';
+  document.getElementById('cs-to').value = '';
+  document.getElementById('cs-multiplier').value = '1.0';
+  yearOptions('cs-year');
+  const year = new Date().getFullYear();
+  const rows = await api('GET', `/api/budget-scenarios?year=${year}`);
+  document.getElementById('cs-from').innerHTML =
+    (rows||[]).length ? rows.map(r=>`<option value="${esc(r.scenario)}">${esc(r.scenario)}</option>`).join('') : '<option value="Base">Base</option>';
+  openModal('copy-scenario-modal');
+}
+
+async function copyScenario() {
+  const errEl = document.getElementById('copy-scenario-error');
+  errEl.style.display = 'none';
+  const body = {
+    year:          parseInt(document.getElementById('cs-year').value),
+    from_scenario: document.getElementById('cs-from').value,
+    to_scenario:   document.getElementById('cs-to').value.trim(),
+    multiplier:    parseFloat(document.getElementById('cs-multiplier').value) || 1.0,
+  };
+  if (!body.to_scenario) { errEl.textContent='Enter a name for the new scenario'; errEl.style.display='block'; return; }
+  const res = await api('POST', '/api/budget-scenarios/copy', body);
+  if (res) { closeModal('copy-scenario-modal'); toast(res.message, 'success'); loadBudgets(); }
+}
+</script>
+</body>
+</html>

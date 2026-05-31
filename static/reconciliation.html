@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Bank Reconciliation</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+<style>
+/* ── PROGRESS BAR ─────────────────────────────────────────────────────────── */
+.recon-bar{background:#fff;border-radius:var(--radius);border:1px solid var(--border);
+  padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.recon-stat{display:flex;flex-direction:column;align-items:center;min-width:80px}
+.recon-stat-val{font-size:22px;font-weight:800;color:var(--navy)}
+.recon-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.progress-wrap{flex:1;min-width:200px}
+.progress-track{height:10px;background:var(--border);border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),#38c172);
+  border-radius:10px;transition:width .5s ease}
+.progress-lbl{font-size:11px;color:var(--muted);margin-top:4px;text-align:right}
+
+/* ── CONFIDENCE BADGES ────────────────────────────────────────────────────── */
+.conf-high  {background:#f0fff4;color:var(--green);border:1px solid #c6f6d5}
+.conf-med   {background:#fffaf0;color:var(--yellow);border:1px solid #faf089}
+.conf-low   {background:#fff5f5;color:var(--red);border:1px solid #fed7d7}
+.conf-excl  {background:#f7fafc;color:var(--muted);border:1px solid var(--border)}
+.conf-badge {display:inline-flex;align-items:center;gap:4px;padding:3px 8px;
+  border-radius:20px;font-size:11px;font-weight:700}
+
+/* ── TRANSACTION ROWS ─────────────────────────────────────────────────────── */
+.txn-row{display:grid;grid-template-columns:90px 1fr 90px 110px auto;
+  gap:0;border-bottom:1px solid var(--border);align-items:center}
+.txn-row:hover{background:#f7fafc}
+.txn-row.matched   {border-left:3px solid var(--green)}
+.txn-row.excluded  {border-left:3px solid var(--muted);opacity:.6}
+.txn-row.suggested {border-left:3px solid var(--yellow)}
+.txn-row.unmatched {border-left:3px solid var(--red)}
+.txn-cell{padding:10px 12px;font-size:13px}
+.txn-amount-pos{color:var(--green);font-weight:700}
+.txn-amount-neg{color:var(--red);font-weight:700}
+.txn-actions{padding:6px 10px;display:flex;gap:4px;flex-wrap:wrap}
+
+/* ── MATCH DETAIL PANEL ───────────────────────────────────────────────────── */
+.match-panel{background:#f0fff4;border-top:1px solid #c6f6d5;
+  padding:10px 14px;font-size:12px;color:var(--text);grid-column:1/-1}
+.match-panel .mp-label{font-size:10px;color:var(--muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+
+/* ── UPLOAD ZONE ──────────────────────────────────────────────────────────── */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);
+  padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;
+  background:#fafbfc}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--navy);background:#f0f4f8}
+.upload-zone input{display:none}
+
+/* ── GL SELECTOR MODAL ────────────────────────────────────────────────────── */
+.gl-list-item{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px}
+.gl-list-item:hover{background:#f0f4f8}
+.gl-list-item.selected{background:rgba(56,161,105,.1);border-left:3px solid var(--green)}
+
+/* ── COMPLETE TAB ─────────────────────────────────────────────────────────── */
+.recon-complete-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.balance-compare{background:var(--bg);border-radius:12px;padding:20px}
+.bc-row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px}
+.bc-total{display:flex;justify-content:space-between;font-size:18px;font-weight:800;
+  color:var(--navy);border-top:2px solid var(--border);padding-top:10px;margin-top:6px}
+.bc-diff-ok   {color:var(--green)}
+.bc-diff-warn {color:var(--red)}
+
+@media(max-width:700px){
+  .txn-row{grid-template-columns:80px 1fr 80px;grid-template-rows:auto auto}
+  .recon-complete-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <!-- Bank account selector -->
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <div class="section-title">🏦 Bank Reconciliation</div>
+    <select id="bank-sel" onchange="onBankChange()"
+            style="padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-width:220px">
+      <option value="">— Select bank account —</option>
+    </select>
+    <span id="recon-gl-balance" style="font-size:13px;color:var(--muted)"></span>
+  </div>
+
+  <!-- Progress summary bar (hidden until bank selected) -->
+  <div class="recon-bar" id="recon-bar" style="display:none">
+    <div class="recon-stat">
+      <div class="recon-stat-val" id="rs-total">0</div>
+      <div class="recon-stat-lbl">Imported</div>
+    </div>
+    <div class="recon-stat">
+      <div class="recon-stat-val" style="color:var(--green)" id="rs-matched">0</div>
+      <div class="recon-stat-lbl">Matched</div>
+    </div>
+    <div class="recon-stat">
+      <div class="recon-stat-val" style="color:var(--yellow)" id="rs-suggested">0</div>
+      <div class="recon-stat-lbl">Suggested</div>
+    </div>
+    <div class="recon-stat">
+      <div class="recon-stat-val" style="color:var(--red)" id="rs-unmatched">0</div>
+      <div class="recon-stat-lbl">Unmatched</div>
+    </div>
+    <div class="recon-stat">
+      <div class="recon-stat-val" style="color:var(--muted)" id="rs-excluded">0</div>
+      <div class="recon-stat-lbl">Excluded</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="rs-progress" style="width:0%"></div></div>
+      <div class="progress-lbl" id="rs-pct">0% matched</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="import"    onclick="switchTab('import')">📤 Import Statement</button>
+    <button class="tab-btn" data-tab="match"     onclick="switchTab('match')">🔗 Match Transactions</button>
+    <button class="tab-btn" data-tab="complete"  onclick="switchTab('complete')">✅ Complete</button>
+    <button class="tab-btn" data-tab="history"   onclick="switchTab('history')">📋 History</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB 1: IMPORT
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-import">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Import Bank Statement CSV</div>
+      </div>
+
+      <!-- Format guide -->
+      <div style="background:#fffaf0;border:1px solid #faf089;border-radius:10px;padding:14px;margin-bottom:16px;font-size:12px">
+        <strong style="color:var(--yellow)">📋 CSV Format Guide</strong>
+        <div style="margin-top:6px;color:var(--muted);line-height:1.8">
+          Your CSV must have a <strong>Date</strong> column and either a single <strong>Amount</strong> column
+          (positive = deposit, negative = withdrawal) OR separate <strong>Debit</strong> and <strong>Credit</strong> columns.
+          A <strong>Description</strong> column greatly improves auto-matching accuracy.
+        </div>
+        <div style="margin-top:8px;display:flex;gap:20px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;color:var(--text);margin-bottom:2px">Format A (Single amount)</div>
+            <code style="font-size:11px;color:var(--navy)">Date,Description,Amount,Balance<br>
+2026-05-01,CUSTOMER PAYMENT,1000.00,5000.00<br>
+2026-05-02,RENT PAYMENT,-1200.00,3800.00</code>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--text);margin-bottom:2px">Format B (Debit/Credit)</div>
+            <code style="font-size:11px;color:var(--navy)">Date,Description,Debit,Credit,Balance<br>
+2026-05-01,CUSTOMER PAYMENT,,1000.00,5000.00<br>
+2026-05-02,RENT PAYMENT,1200.00,,3800.00</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload zone -->
+      <div class="upload-zone" id="upload-zone"
+           onclick="document.getElementById('csv-file').click()"
+           ondragover="e=>{e.preventDefault();this.classList.add('drag-over')}"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <input type="file" id="csv-file" accept=".csv,.txt" onchange="handleFileSelect(event)">
+        <div style="font-size:40px;margin-bottom:10px;opacity:.4">📂</div>
+        <div style="font-weight:700;font-size:15px;color:var(--text)">Drop CSV file here or click to browse</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Supports CSV from any bank — ZB, FBC, CBZ, FNB, Standard Bank, Ecobank</div>
+      </div>
+
+      <!-- Preview -->
+      <div id="csv-preview" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <strong id="preview-count"></strong>
+            <span style="font-size:12px;color:var(--muted)" id="preview-range"></span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="clearPreview()">✕ Clear</button>
+            <button class="btn btn-primary btn-sm" id="import-btn" onclick="importStatement()">
+              📥 Import Transactions
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="r">Amount</th><th class="r">Balance</th></tr></thead>
+            <tbody id="preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB 2: MATCH
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-match">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Match Transactions</div>
+        <div class="section-actions">
+          <select id="filter-status" onchange="loadTransactions()"
+                  style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All</option>
+            <option value="unmatched">Unmatched</option>
+            <option value="matched">Matched</option>
+            <option value="excluded">Excluded</option>
+          </select>
+          <input type="date" id="filter-from" onchange="loadTransactions()"
+                 style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <input type="date" id="filter-to" onchange="loadTransactions()"
+                 style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <button class="btn btn-sm btn-primary" onclick="runAutoMatch()">⚡ Auto-Match</button>
+        </div>
+      </div>
+
+      <div id="match-content">
+        <div class="empty-state"><div class="empty-icon">🔗</div>
+          <div class="empty-title">Select a bank account to start</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB 3: COMPLETE
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-complete">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Complete Reconciliation</div>
+      </div>
+      <div class="recon-complete-grid">
+        <!-- Left: form -->
+        <div>
+          <div class="field"><label>Period Name *</label>
+            <input type="text" id="cp-name" placeholder="e.g. May 2026 — Main Account"></div>
+          <div class="field-row">
+            <div class="field"><label>Period Start *</label><input type="date" id="cp-start"></div>
+            <div class="field"><label>Period End *</label><input type="date" id="cp-end"></div>
+          </div>
+          <div class="field"><label>Statement Closing Balance *</label>
+            <input type="number" id="cp-balance" step="0.01" placeholder="Balance from your bank statement">
+          </div>
+          <div class="field"><label>Notes</label>
+            <textarea id="cp-notes" rows="2" style="resize:vertical" placeholder="Any notes…"></textarea>
+          </div>
+          <div id="cp-error" class="error-msg" style="display:none"></div>
+          <button class="btn btn-primary btn-block" onclick="completeReconciliation()">
+            ✅ Save Reconciliation Period
+          </button>
+        </div>
+        <!-- Right: balance compare -->
+        <div>
+          <div class="balance-compare">
+            <div style="font-weight:800;font-size:14px;color:var(--text);margin-bottom:12px">Balance Check</div>
+            <div class="bc-row">
+              <span>GL Balance (per books)</span>
+              <strong id="cp-gl-bal">—</strong>
+            </div>
+            <div class="bc-row">
+              <span>Statement Balance</span>
+              <strong id="cp-stmt-bal">—</strong>
+            </div>
+            <div class="bc-total">
+              <span>Difference</span>
+              <span id="cp-diff">—</span>
+            </div>
+            <div id="cp-diff-msg" style="font-size:12px;margin-top:10px;padding:8px 12px;border-radius:8px"></div>
+          </div>
+          <div style="margin-top:12px;background:var(--bg);border-radius:10px;padding:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase">Unmatched Items</div>
+            <div id="cp-unmatched-list" style="font-size:12px;color:var(--muted)">
+              Select a bank account to see unmatched items.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB 4: HISTORY
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-history">
+    <div class="section-card">
+      <div class="section-header"><div class="section-title">Reconciliation History</div></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Period</th><th>Dates</th><th>Statement Balance</th><th>GL Balance</th><th>Difference</th><th>Status</th><th>Reconciled</th></tr></thead>
+          <tbody id="history-body">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No completed reconciliations yet</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     GL SELECTOR MODAL
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="gl-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Select Matching GL Entry</div>
+      <button class="modal-close" onclick="closeModal('gl-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px">
+      <div id="gl-modal-txn" style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" id="gl-search" class="search-input" style="flex:1"
+               placeholder="Search by description, amount, reference…" oninput="filterGLList()">
+      </div>
+      <div class="table-wrap" style="max-height:380px;overflow-y:auto">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Entry #</th><th>Description</th><th class="r">Debit</th><th class="r">Credit</th><th></th></tr></thead>
+          <tbody id="gl-list-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('gl-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentBankId    = null;
+let allBankAccounts  = [];
+let allTransactions  = [];
+let allGLLines       = [];
+let csvRows          = [];
+let matchingTxnId    = null;
+let glListCache      = [];
+let summaryData      = null;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('banking', 'Bank Reconciliation');
+  initTabs('import');
+  await loadBankAccounts();
+})();
+
+async function loadBankAccounts() {
+  const data = await api('GET', '/api/bank-accounts');
+  if (!data) return;
+  allBankAccounts = Array.isArray(data) ? data : [];
+  const sel = document.getElementById('bank-sel');
+  sel.innerHTML = '<option value="">— Select bank account —</option>' +
+    allBankAccounts.map(b =>
+      `<option value="${b.id}">${esc(b.name)}${b.bank_name ? ' — ' + esc(b.bank_name) : ''}</option>`
+    ).join('');
+}
+
+async function onBankChange() {
+  const sel = document.getElementById('bank-sel');
+  currentBankId = sel.value ? parseInt(sel.value) : null;
+  if (!currentBankId) {
+    document.getElementById('recon-bar').style.display = 'none';
+    document.getElementById('recon-gl-balance').textContent = '';
+    return;
+  }
+  await refreshSummary();
+  await loadTransactions();
+  await loadHistory();
+  await loadUnmatchedForComplete();
+}
+
+async function refreshSummary() {
+  if (!currentBankId) return;
+  const d = await api('GET', `/api/bank-accounts/${currentBankId}/reconciliation-summary`);
+  if (!d) return;
+  summaryData = d;
+  const s = d.stats || {};
+  const total    = s.total     || 0;
+  const matched  = s.matched   || 0;
+  const excluded = s.excluded  || 0;
+  const suggested= s.suggested || 0;
+  const unmatched= s.unmatched || 0;
+  const pct      = total > 0 ? Math.round(matched / total * 100) : 0;
+
+  document.getElementById('rs-total').textContent     = total;
+  document.getElementById('rs-matched').textContent   = matched;
+  document.getElementById('rs-suggested').textContent = suggested;
+  document.getElementById('rs-unmatched').textContent = unmatched;
+  document.getElementById('rs-excluded').textContent  = excluded;
+  document.getElementById('rs-progress').style.width  = pct + '%';
+  document.getElementById('rs-pct').textContent       = pct + '% matched';
+  document.getElementById('recon-bar').style.display  = total > 0 ? 'flex' : 'none';
+
+  document.getElementById('recon-gl-balance').textContent =
+    `GL Balance: ${fmt(d.gl_balance)}`;
+  document.getElementById('cp-gl-bal').textContent = fmt(d.gl_balance);
+  calcDifference();
+}
+
+// ── CSV IMPORT ────────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+}
+
+function readFile(file) {
+  if (!file.name.match(/\.(csv|txt)$/i)) {
+    toast('Please select a CSV or TXT file', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => previewCSV(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function previewCSV(content, filename) {
+  // Client-side peek — parse 5 rows to show preview
+  // Full parsing happens server-side
+  const lines = content.trim().split('\n').filter(Boolean);
+  if (lines.length < 2) { toast('CSV appears empty', 'error'); return; }
+
+  // Store for import
+  csvRows = { content, filename };
+
+  // Simple preview: show first few rows raw
+  const headers = lines[0].split(',');
+  const preview = lines.slice(1, 11);
+  const tbody = document.getElementById('preview-body');
+
+  tbody.innerHTML = preview.map(line => {
+    const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    // Try to identify date, description, amount columns by position
+    return `<tr>${cols.map(c => `<td style="font-size:12px">${esc(c)}</td>`).join('')}</tr>`;
+  }).join('');
+
+  document.getElementById('preview-count').textContent =
+    `${lines.length - 1} transaction rows detected`;
+  document.getElementById('preview-range').textContent = ` from ${filename}`;
+
+  // Override tbody with proper columns if we can detect them
+  setTimeout(() => {
+    // Re-render nicely once we know the structure
+    renderPreviewNice(content);
+  }, 0);
+
+  document.getElementById('csv-preview').style.display = 'block';
+}
+
+function renderPreviewNice(content) {
+  // Very basic client preview — real parsing is server-side
+  const lines = content.lstrip ? content.lstrip() : content.trim();
+  document.getElementById('preview-count').textContent =
+    `${(lines.split('\n').length - 1)} rows ready to import`;
+}
+
+function clearPreview() {
+  csvRows = null;
+  document.getElementById('csv-preview').style.display = 'none';
+  document.getElementById('csv-file').value = '';
+}
+
+async function importStatement() {
+  if (!currentBankId) { toast('Select a bank account first', 'error'); return; }
+  if (!csvRows) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true; btn.textContent = '⏳ Importing…';
+  const result = await api('POST',
+    `/api/bank-accounts/${currentBankId}/import-statement`,
+    { csv_content: csvRows.content }
+  );
+  btn.disabled = false; btn.textContent = '📥 Import Transactions';
+  if (!result) return;
+  toast(`✓ ${result.message}`, 'success');
+  clearPreview();
+  await refreshSummary();
+  await loadTransactions();
+  switchTab('match');
+}
+
+// ── MATCH TAB ─────────────────────────────────────────────────────────────────
+async function loadTransactions() {
+  if (!currentBankId) return;
+  const status  = document.getElementById('filter-status')?.value || '';
+  const from    = document.getElementById('filter-from')?.value || '';
+  const to      = document.getElementById('filter-to')?.value   || '';
+  let url = `/api/bank-accounts/${currentBankId}/transactions`;
+  const p = [];
+  if (status) p.push(`status=${status}`);
+  if (from)   p.push(`date_from=${from}`);
+  if (to)     p.push(`date_to=${to}`);
+  if (p.length) url += '?' + p.join('&');
+  const data = await api('GET', url);
+  if (!data) return;
+  allTransactions = Array.isArray(data) ? data : [];
+  renderTransactions();
+}
+
+function renderTransactions() {
+  const container = document.getElementById('match-content');
+  if (!allTransactions.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div>
+      <div class="empty-title">No transactions imported yet</div>
+      <div class="empty-sub">Go to the Import tab to upload a bank statement CSV</div></div>`;
+    return;
+  }
+
+  const rows = allTransactions.map(t => {
+    const status = t.match_status || 'unmatched';
+    const conf   = t.match_confidence || 0;
+    const isPos  = t.amount > 0;
+
+    let badgeClass, badgeText;
+    if (status === 'matched')  { badgeClass = 'conf-high'; badgeText = `✓ Matched ${conf > 0 ? Math.round(conf)+'%' : ''}`; }
+    else if (status === 'excluded') { badgeClass = 'conf-excl'; badgeText = '— Excluded'; }
+    else if (conf >= 50)       { badgeClass = 'conf-med';  badgeText = `? ${Math.round(conf)}% match`; }
+    else                       { badgeClass = 'conf-low';  badgeText = '✕ Unmatched'; }
+
+    const matchDetail = status === 'matched' && t.entry_number ? `
+      <div class="match-panel">
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div><div class="mp-label">Matched to</div><strong>${esc(t.entry_number)}</strong></div>
+          <div><div class="mp-label">GL Date</div>${dateStr(t.je_date||'')}</div>
+          <div><div class="mp-label">Description</div>${esc(t.je_desc||t.gl_line_desc||'')}</div>
+          <div><div class="mp-label">Account</div>${esc(t.gl_account_code||'')} ${esc(t.gl_account_name||'')}</div>
+        </div>
+      </div>` : (conf >= 50 && status === 'unmatched' && t.entry_number ? `
+      <div class="match-panel" style="background:#fffaf0;border-top:1px solid #faf089">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--yellow);font-weight:700">⚡ SUGGESTED:</span>
+          <span>${esc(t.entry_number||'')} — ${esc(t.je_desc||'')} — ${dateStr(t.je_date||'')}</span>
+          <button class="btn btn-xs btn-gold" onclick="acceptSuggestion(${t.id},${t.journal_line_id})">Accept</button>
+        </div>
+      </div>` : '');
+
+    return `<div class="txn-row ${status}" id="tr-${t.id}">
+      <div class="txn-cell" style="color:var(--muted);font-size:12px">${dateStr(t.date)}</div>
+      <div class="txn-cell">
+        <div style="font-weight:600;font-size:13px">${esc(t.description||'')}</div>
+        ${t.reference ? `<div style="font-size:11px;color:var(--muted);font-family:monospace">${esc(t.reference)}</div>` : ''}
+      </div>
+      <div class="txn-cell r ${isPos?'txn-amount-pos':'txn-amount-neg'}">${isPos?'+':''}${fmt(t.amount)}</div>
+      <div class="txn-cell"><span class="conf-badge ${badgeClass}">${badgeText}</span></div>
+      <div class="txn-actions">
+        ${status !== 'matched' ? `<button class="btn btn-xs btn-primary" onclick="openGLModal(${t.id},${t.amount})">Match</button>` : ''}
+        ${status === 'matched' ? `<button class="btn btn-xs btn-outline" onclick="unmatch(${t.id})">Unmatch</button>` : ''}
+        ${status !== 'excluded' ? `<button class="btn btn-xs btn-outline" onclick="exclude(${t.id})" title="Exclude (bank fee, etc.)">Excl.</button>` : ''}
+        ${status === 'excluded' ? `<button class="btn btn-xs btn-outline" onclick="unmatch(${t.id})">Restore</button>` : ''}
+      </div>
+      ${matchDetail}
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+                letter-spacing:.05em;padding:8px 12px;background:#f7fafc;border-bottom:1px solid var(--border);
+                display:grid;grid-template-columns:90px 1fr 90px 110px auto;gap:0">
+      <span>Date</span><span>Description</span><span class="r">Amount</span>
+      <span>Status</span><span>Actions</span>
+    </div>
+    ${rows}`;
+}
+
+async function runAutoMatch() {
+  if (!currentBankId) { toast('Select a bank account first', 'error'); return; }
+  const result = await api('POST', `/api/bank-accounts/${currentBankId}/auto-match`);
+  if (!result) return;
+  toast(`⚡ ${result.message}`, 'success', 5000);
+  await refreshSummary();
+  await loadTransactions();
+  await loadUnmatchedForComplete();
+}
+
+async function acceptSuggestion(tid, lineId) {
+  const result = await api('POST', '/api/reconciliation/match',
+    { bank_transaction_id: tid, journal_line_id: lineId });
+  if (!result) return;
+  toast('Matched!', 'success');
+  await refreshSummary();
+  await loadTransactions();
+}
+
+async function unmatch(tid) {
+  const result = await api('POST', `/api/reconciliation/unmatch/${tid}`);
+  if (!result) return;
+  toast('Unmatched', 'success');
+  await refreshSummary();
+  await loadTransactions();
+}
+
+async function exclude(tid) {
+  const result = await api('POST', `/api/reconciliation/exclude/${tid}`);
+  if (!result) return;
+  toast('Excluded', 'success');
+  await refreshSummary();
+  await loadTransactions();
+}
+
+// ── GL SELECTOR MODAL ─────────────────────────────────────────────────────────
+async function openGLModal(tid, txnAmount) {
+  matchingTxnId = tid;
+  const t = allTransactions.find(x => x.id === tid);
+
+  document.getElementById('gl-modal-txn').innerHTML = t ? `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12px">
+      <div><span style="color:var(--muted)">Date: </span><strong>${dateStr(t.date)}</strong></div>
+      <div><span style="color:var(--muted)">Description: </span><strong>${esc(t.description||'')}</strong></div>
+      <div><span style="color:var(--muted)">Amount: </span>
+        <strong style="color:${t.amount>=0?'var(--green)':'var(--red)'}">${fmt(t.amount)}</strong></div>
+    </div>` : '';
+
+  // Load GL lines for this bank account
+  const data = await api('GET', `/api/bank-accounts/${currentBankId}/unmatched-gl`);
+  glListCache = data || [];
+  document.getElementById('gl-search').value = '';
+  renderGLList(glListCache);
+  openModal('gl-modal');
+}
+
+function filterGLList() {
+  const q = document.getElementById('gl-search').value.toLowerCase();
+  const filtered = q ? glListCache.filter(g =>
+    (g.description||'').toLowerCase().includes(q) ||
+    (g.entry_number||'').toLowerCase().includes(q) ||
+    String(g.debit||'').includes(q) ||
+    String(g.credit||'').includes(q) ||
+    (g.reference||'').toLowerCase().includes(q)
+  ) : glListCache;
+  renderGLList(filtered);
+}
+
+function renderGLList(rows) {
+  const tbody = document.getElementById('gl-list-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state" style="padding:20px"><div class="empty-title">No unmatched GL entries found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(g => `<tr>
+    <td style="font-size:12px">${dateStr(g.date)}</td>
+    <td><strong style="font-size:12px">${esc(g.entry_number||'')}</strong></td>
+    <td style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis">
+      ${esc(g.description||g.line_desc||'')}</td>
+    <td class="r" style="color:var(--green);font-weight:700;font-size:12px">
+      ${g.debit>0?fmt(g.debit):''}</td>
+    <td class="r" style="color:var(--red);font-weight:700;font-size:12px">
+      ${g.credit>0?fmt(g.credit):''}</td>
+    <td><button class="btn btn-xs btn-primary" onclick="confirmMatch(${g.line_id})">Match</button></td>
+  </tr>`).join('');
+}
+
+async function confirmMatch(lineId) {
+  const result = await api('POST', '/api/reconciliation/match',
+    { bank_transaction_id: matchingTxnId, journal_line_id: lineId });
+  if (!result) return;
+  closeModal('gl-modal');
+  toast(`✓ Matched! Confidence: ${Math.round(result.confidence||0)}%`, 'success');
+  await refreshSummary();
+  await loadTransactions();
+  await loadUnmatchedForComplete();
+}
+
+// ── COMPLETE TAB ──────────────────────────────────────────────────────────────
+async function loadUnmatchedForComplete() {
+  if (!currentBankId) return;
+  const data = await api('GET',
+    `/api/bank-accounts/${currentBankId}/transactions?status=unmatched`);
+  const items = Array.isArray(data) ? data : [];
+  const el = document.getElementById('cp-unmatched-list');
+  if (!items.length) {
+    el.innerHTML = '<span style="color:var(--green);font-weight:700">✓ All transactions matched!</span>';
+    return;
+  }
+  el.innerHTML = `<div style="color:var(--red);font-weight:700;margin-bottom:6px">${items.length} unmatched transactions:</div>` +
+    items.slice(0, 8).map(t =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span>${dateStr(t.date)} — ${esc((t.description||'').slice(0,35))}</span>
+        <strong style="color:${t.amount>=0?'var(--green)':'var(--red)'}">${fmt(t.amount)}</strong>
+      </div>`
+    ).join('') +
+    (items.length > 8 ? `<div style="color:var(--muted);margin-top:4px">…and ${items.length-8} more</div>` : '');
+}
+
+function calcDifference() {
+  const glBal   = summaryData?.gl_balance || 0;
+  const stmtStr = document.getElementById('cp-balance')?.value;
+  const stmtBal = parseFloat(stmtStr) || null;
+  if (stmtBal === null) {
+    document.getElementById('cp-stmt-bal').textContent = '—';
+    document.getElementById('cp-diff').textContent = '—';
+    document.getElementById('cp-diff-msg').innerHTML = '';
+    return;
+  }
+  const diff = stmtBal - glBal;
+  document.getElementById('cp-stmt-bal').textContent = fmt(stmtBal);
+  const diffEl = document.getElementById('cp-diff');
+  diffEl.textContent = fmt(diff);
+  diffEl.className   = Math.abs(diff) < 0.01 ? 'bc-diff-ok' : 'bc-diff-warn';
+  const msgEl = document.getElementById('cp-diff-msg');
+  if (Math.abs(diff) < 0.01) {
+    msgEl.style.background = '#f0fff4'; msgEl.style.color = 'var(--green)';
+    msgEl.innerHTML = '✅ <strong>Balanced!</strong> Statement and GL agree.';
+  } else {
+    msgEl.style.background = '#fff5f5'; msgEl.style.color = 'var(--red)';
+    msgEl.innerHTML = `⚠️ <strong>Difference of ${fmt(diff)}</strong> — investigate unmatched items before completing.`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cp-balance')?.addEventListener('input', calcDifference);
+});
+
+async function completeReconciliation() {
+  if (!currentBankId) { toast('Select a bank account first', 'error'); return; }
+  const errEl   = document.getElementById('cp-error');
+  errEl.style.display = 'none';
+  const name    = document.getElementById('cp-name').value.trim();
+  const start   = document.getElementById('cp-start').value;
+  const end     = document.getElementById('cp-end').value;
+  const balance = parseFloat(document.getElementById('cp-balance').value);
+  const notes   = document.getElementById('cp-notes').value.trim();
+  if (!name || !start || !end || isNaN(balance)) {
+    errEl.textContent = 'Period name, dates, and statement balance are required.';
+    errEl.style.display = 'block'; return;
+  }
+  const result = await api('POST', '/api/reconciliation/complete', {
+    bank_account_id: currentBankId,
+    period_name: name, start_date: start, end_date: end,
+    statement_balance: balance, notes: notes || null,
+  });
+  if (!result) return;
+  const balanced = result.balanced;
+  toast(balanced
+    ? `✅ Reconciliation complete! Balanced at ${fmt(balance)}`
+    : `⚠️ Saved with difference of ${fmt(result.difference)} — review unmatched items`,
+    balanced ? 'success' : 'info', 6000);
+  await loadHistory();
+  await refreshSummary();
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const d = summaryData;
+  const periods = d?.periods || [];
+  const tbody = document.getElementById('history-body');
+  if (!periods.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No completed reconciliations yet</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = periods.map(p => {
+    const diff = (p.statement_balance - p.gl_balance).toFixed(2);
+    const ok   = Math.abs(parseFloat(diff)) < 0.01;
+    return `<tr>
+      <td><strong>${esc(p.period_name)}</strong></td>
+      <td style="font-size:12px">${dateStr(p.start_date)} → ${dateStr(p.end_date)}</td>
+      <td class="r">${fmt(p.statement_balance)}</td>
+      <td class="r">${fmt(p.gl_balance)}</td>
+      <td class="r" style="color:${ok?'var(--green)':'var(--red)'};font-weight:700">
+        ${ok ? '✓ 0.00' : fmt(parseFloat(diff))}</td>
+      <td><span class="badge ${p.status==='reconciled'?'posted':'draft'}">${p.status}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${dateStr(p.reconciled_at||p.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Fix: String doesn't have lstrip
+String.prototype.lstrip = String.prototype.trimStart || function() { return this.replace(/^\s+/,''); };
+</script>
+</body>
+</html>

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Fixed Assets & Tax</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="assets"       onclick="switchTab('assets')">Fixed Assets</button>
+    <button class="tab-btn" data-tab="asset-report" onclick="switchTab('asset-report')">Asset Report</button>
+    <button class="tab-btn" data-tab="tax"          onclick="switchTab('tax')">Tax Periods</button>
+  </div>
+
+  <!-- ── FIXED ASSETS ───────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-assets">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Fixed Assets Register</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="asset-search" placeholder="Search assets…" oninput="renderAssets()">
+          <select id="asset-status-filter" onchange="renderAssets()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="disposed">Disposed</option>
+            <option value="fully_depreciated">Fully Depreciated</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="openAssetModal()">+ Register Asset</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Category</th><th>Acquired</th><th class="r">Cost</th><th class="r">Acc. Depreciation</th><th class="r">Book Value</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="assets-body"><tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏗️</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ASSET REPORT ───────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-asset-report">
+    <div class="kpi-grid" id="asset-kpis"></div>
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Asset Register Report</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-outline" onclick="printAssetReport()">Print</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="asset-report-table">
+          <thead><tr><th>Name</th><th>Category</th><th>Method</th><th class="r">Cost</th><th class="r">Salvage</th><th>Life</th><th class="r">Acc. Depreciation</th><th class="r">Book Value</th><th>Status</th></tr></thead>
+          <tbody id="asset-report-body"><tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAX PERIODS ────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-tax">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Tax Periods</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="openTaxPeriodModal()">+ New Tax Period</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Period Name</th><th>Start Date</th><th>End Date</th><th>Tax Type</th><th class="r">Output Tax</th><th class="r">Input Tax</th><th class="r">Net Tax</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="tax-periods-body"><tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="tax-summary-container"></div>
+  </div>
+</main>
+
+<!-- ── REGISTER ASSET MODAL ───────────────────────────────────────────────── -->
+<div class="modal-overlay" id="asset-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="asset-modal-title">Register Fixed Asset</div>
+      <button class="modal-close" onclick="closeModal('asset-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="asset-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Asset Name *</label><input type="text" id="asset-name" placeholder="e.g. Office Laptop"></div>
+        <div class="field"><label>Category</label><input type="text" id="asset-category" placeholder="e.g. IT Equipment"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Acquisition Date *</label><input type="date" id="asset-date"></div>
+        <div class="field"><label>Cost *</label><input type="number" id="asset-cost" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Salvage Value</label><input type="number" id="asset-salvage" step="0.01" min="0" placeholder="0.00" value="0"></div>
+        <div class="field"><label>Useful Life (years) *</label><input type="number" id="asset-life" step="1" min="1" placeholder="5"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Depreciation Method</label>
+          <select id="asset-method" onchange="toggleRateField()">
+            <option value="straight_line">Straight Line</option>
+            <option value="declining_balance">Declining Balance</option>
+          </select>
+        </div>
+        <div class="field" id="asset-rate-field" style="display:none">
+          <label>Declining Balance Rate (%)</label>
+          <input type="number" id="asset-rate" step="0.01" min="0" max="100" placeholder="e.g. 25">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Asset GL Account</label><select id="asset-gl-account"><option value="">— Select —</option></select></div>
+        <div class="field"><label>Depreciation GL Account</label><select id="asset-depr-account"><option value="">— Select —</option></select></div>
+      </div>
+      <div class="field"><label>Description / Notes</label><textarea id="asset-description" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('asset-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAsset()" id="asset-save-btn">Register Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DEPRECIATE MODAL ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="depreciate-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Depreciation</div>
+      <button class="modal-close" onclick="closeModal('depreciate-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="depreciate-asset-info" style="font-weight:700;margin-bottom:12px"></div>
+      <div id="depreciate-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Period (YYYY-MM) *</label><input type="month" id="depr-period"></div>
+      <div class="field"><label>Depreciation Date</label><input type="date" id="depr-date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('depreciate-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDepreciation()" id="depr-save-btn">Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISPOSE MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="dispose-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Dispose Asset</div>
+      <button class="modal-close" onclick="closeModal('dispose-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dispose-asset-info" style="font-weight:700;margin-bottom:12px"></div>
+      <div id="dispose-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Disposal Date *</label><input type="date" id="dispose-date"></div>
+        <div class="field"><label>Proceeds from Sale</label><input type="number" id="dispose-proceeds" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="dispose-notes" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('dispose-modal')">Cancel</button>
+      <button class="btn btn-danger" onclick="saveDisposal()" id="dispose-save-btn">Confirm Disposal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAX PERIOD MODAL ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="tax-period-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Tax Period</div>
+      <button class="modal-close" onclick="closeModal('tax-period-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="tax-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Period Name *</label><input type="text" id="tax-period-name" placeholder="e.g. Q1 2026 VAT"></div>
+      <div class="field-row">
+        <div class="field"><label>Start Date *</label><input type="date" id="tax-start-date"></div>
+        <div class="field"><label>End Date *</label><input type="date" id="tax-end-date"></div>
+      </div>
+      <div class="field"><label>Tax Type</label>
+        <select id="tax-type">
+          <option value="vat">VAT</option>
+          <option value="income_tax">Income Tax</option>
+          <option value="paye">PAYE</option>
+          <option value="withholding">Withholding Tax</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('tax-period-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTaxPeriod()" id="tax-save-btn">Create Period</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allAssets     = [];
+let allTaxPeriods = [];
+let allAccounts   = [];
+let actionAssetId = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('assets', 'Fixed Assets & Tax');
+  initTabs('assets');
+  document.getElementById('asset-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('depr-date').value  = new Date().toISOString().split('T')[0];
+  document.getElementById('dispose-date').value = new Date().toISOString().split('T')[0];
+  await Promise.all([loadAssets(), loadTaxPeriods(), loadAccounts()]);
+})();
+
+async function loadAccounts() {
+  const data = await api('GET', '/api/accounts');
+  if (!data) { return; }
+  allAccounts = data;
+  const assetAccounts = data.filter(a => a.type === 'asset');
+  const expAccounts   = data.filter(a => a.type === 'expense');
+  const fillSel = (selId, accounts) => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Select —</option>' +
+      accounts.map(a => `<option value="${a.id}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+  };
+  fillSel('asset-gl-account', assetAccounts);
+  fillSel('asset-depr-account', expAccounts);
+}
+
+async function loadAssets() {
+  const data = await api('GET', '/api/fixed-assets');
+  if (!data) return;
+  allAssets = Array.isArray(data) ? data : (data.assets || data.items || []);
+  renderAssets();
+  renderAssetReport();
+}
+
+async function loadTaxPeriods() {
+  const data = await api('GET', '/api/tax-periods');
+  if (!data) return;
+  allTaxPeriods = Array.isArray(data) ? data : (data.periods || data.items || []);
+  renderTaxPeriods();
+}
+
+function renderAssets() {
+  const search = (document.getElementById('asset-search').value||'').toLowerCase();
+  const statusF = document.getElementById('asset-status-filter').value;
+  let rows = allAssets.filter(a => {
+    if (statusF && a.status !== statusF) return false;
+    if (search && !a.name.toLowerCase().includes(search) && !(a.category||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('assets-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏗️</div><div class="empty-title">No assets found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(a => {
+    const bookVal = (a.cost||0) - (a.accumulated_depreciation||0);
+    return `<tr>
+      <td><strong>${esc(a.name)}</strong></td>
+      <td>${esc(a.category||'—')}</td>
+      <td>${dateStr(a.acquisition_date||a.date)}</td>
+      <td class="r">${fmt(a.cost||0)}</td>
+      <td class="r" style="color:var(--red)">${fmt(a.accumulated_depreciation||0)}</td>
+      <td class="r" style="font-weight:700;color:var(--navy)">${fmt(bookVal)}</td>
+      <td><span class="badge ${a.status==='active'?'posted':a.status==='disposed'?'void':'muted'}">${a.status||'active'}</span></td>
+      <td>
+        ${a.status === 'active' ? `
+          <button class="btn btn-xs btn-outline" onclick="openDepreciateModal(${a.id})">Depreciate</button>
+          <button class="btn btn-xs btn-outline" onclick="openDisposeModal(${a.id})" style="margin-left:4px">Dispose</button>
+          <button class="btn btn-xs btn-outline" onclick="viewDepreciationSchedule(${a.id})" style="margin-left:4px">Schedule</button>
+        ` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAssetReport() {
+  const totalCost = allAssets.reduce((s,a) => s+(a.cost||0), 0);
+  const totalAccDepr = allAssets.reduce((s,a) => s+(a.accumulated_depreciation||0), 0);
+  const totalBook = totalCost - totalAccDepr;
+
+  document.getElementById('asset-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Asset Cost</div><div class="kpi-value" style="color:var(--navy)">${fmt(totalCost)}</div><div class="kpi-icon blue">🏗️</div></div>
+    <div class="kpi-card"><div class="kpi-label">Accumulated Depreciation</div><div class="kpi-value" style="color:var(--red)">${fmt(totalAccDepr)}</div><div class="kpi-icon red">📉</div></div>
+    <div class="kpi-card"><div class="kpi-label">Net Book Value</div><div class="kpi-value" style="color:var(--green)">${fmt(totalBook)}</div><div class="kpi-icon green">💰</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Assets</div><div class="kpi-value">${allAssets.length}</div><div class="kpi-icon gold">📋</div></div>
+  `;
+
+  const tbody = document.getElementById('asset-report-body');
+  if (!allAssets.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No assets registered</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allAssets.map(a => {
+    const bookVal = (a.cost||0) - (a.accumulated_depreciation||0);
+    return `<tr>
+      <td>${esc(a.name)}</td>
+      <td>${esc(a.category||'—')}</td>
+      <td><span class="badge info">${(a.method||a.depreciation_method||'').replace('_',' ')}</span></td>
+      <td class="r">${fmt(a.cost||0)}</td>
+      <td class="r">${fmt(a.salvage_value||0)}</td>
+      <td>${a.useful_life||a.life||'—'} yrs</td>
+      <td class="r" style="color:var(--red)">${fmt(a.accumulated_depreciation||0)}</td>
+      <td class="r" style="font-weight:700">${fmt(bookVal)}</td>
+      <td><span class="badge ${a.status==='active'?'posted':a.status==='disposed'?'void':'muted'}">${a.status||'active'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTaxPeriods() {
+  const tbody = document.getElementById('tax-periods-body');
+  if (!allTaxPeriods.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No tax periods yet</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allTaxPeriods.map(p => `<tr>
+    <td><strong>${esc(p.period_name||p.name||'')}</strong></td>
+    <td>${dateStr(p.start_date)}</td>
+    <td>${dateStr(p.end_date)}</td>
+    <td><span class="badge info">${esc(p.tax_type||'')}</span></td>
+    <td class="r">${fmt(p.output_tax||0)}</td>
+    <td class="r">${fmt(p.input_tax||0)}</td>
+    <td class="r" style="font-weight:700;color:${(p.net_tax||0)>=0?'var(--red)':'var(--green)'}">${fmt(p.net_tax||0)}</td>
+    <td><span class="badge ${p.status==='filed'?'posted':p.status==='draft'?'draft':'muted'}">${p.status||'draft'}</span></td>
+    <td>
+      <button class="btn btn-xs btn-outline" onclick="viewTaxSummary(${p.id})">Summary</button>
+      ${p.status !== 'filed' ? `<button class="btn btn-xs btn-gold" onclick="fileTaxPeriod(${p.id})" style="margin-left:4px">File</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function toggleRateField() {
+  const method = document.getElementById('asset-method').value;
+  document.getElementById('asset-rate-field').style.display = method === 'declining_balance' ? 'block' : 'none';
+}
+
+function openAssetModal() {
+  document.getElementById('asset-modal-title').textContent = 'Register Fixed Asset';
+  document.getElementById('asset-modal-error').style.display = 'none';
+  ['asset-name','asset-category','asset-description'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('asset-cost').value = '';
+  document.getElementById('asset-salvage').value = '0';
+  document.getElementById('asset-life').value = '';
+  document.getElementById('asset-method').value = 'straight_line';
+  document.getElementById('asset-rate').value = '';
+  document.getElementById('asset-gl-account').value = '';
+  document.getElementById('asset-depr-account').value = '';
+  document.getElementById('asset-date').value = new Date().toISOString().split('T')[0];
+  toggleRateField();
+  openModal('asset-modal');
+}
+
+async function saveAsset() {
+  const errEl = document.getElementById('asset-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('asset-name').value.trim();
+  const cost = parseFloat(document.getElementById('asset-cost').value);
+  const life = parseInt(document.getElementById('asset-life').value);
+  const date = document.getElementById('asset-date').value;
+  if (!name || !cost || !life || !date) {
+    errEl.textContent = 'Name, cost, useful life, and date are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const method = document.getElementById('asset-method').value;
+  const payload = {
+    name,
+    category: document.getElementById('asset-category').value.trim() || null,
+    acquisition_date: date,
+    cost,
+    salvage_value: parseFloat(document.getElementById('asset-salvage').value) || 0,
+    useful_life: life,
+    depreciation_method: method,
+    declining_balance_rate: method === 'declining_balance' ? parseFloat(document.getElementById('asset-rate').value)||null : null,
+    gl_account_id: document.getElementById('asset-gl-account').value ? parseInt(document.getElementById('asset-gl-account').value) : null,
+    depreciation_account_id: document.getElementById('asset-depr-account').value ? parseInt(document.getElementById('asset-depr-account').value) : null,
+    description: document.getElementById('asset-description').value.trim() || null,
+  };
+  const btn = document.getElementById('asset-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/fixed-assets', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast('Asset registered', 'success');
+  closeModal('asset-modal');
+  await loadAssets();
+}
+
+function openDepreciateModal(id) {
+  const a = allAssets.find(x => x.id === id);
+  if (!a) return;
+  actionAssetId = id;
+  document.getElementById('depreciate-asset-info').textContent = `Asset: ${a.name} | Book Value: ${fmt((a.cost||0)-(a.accumulated_depreciation||0))}`;
+  document.getElementById('depreciate-modal-error').style.display = 'none';
+  const now = new Date();
+  document.getElementById('depr-period').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('depr-date').value = now.toISOString().split('T')[0];
+  openModal('depreciate-modal');
+}
+
+async function saveDepreciation() {
+  const errEl = document.getElementById('depreciate-modal-error');
+  errEl.style.display = 'none';
+  const period = document.getElementById('depr-period').value;
+  const date   = document.getElementById('depr-date').value;
+  if (!period) { errEl.textContent = 'Period is required.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('depr-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', `/api/fixed-assets/${actionAssetId}/depreciate`, { period, date: date || null });
+  btn.disabled = false;
+  if (!result) return;
+  toast('Depreciation recorded', 'success');
+  closeModal('depreciate-modal');
+  await loadAssets();
+}
+
+function openDisposeModal(id) {
+  const a = allAssets.find(x => x.id === id);
+  if (!a) return;
+  actionAssetId = id;
+  document.getElementById('dispose-asset-info').textContent = `Asset: ${a.name} | Book Value: ${fmt((a.cost||0)-(a.accumulated_depreciation||0))}`;
+  document.getElementById('dispose-modal-error').style.display = 'none';
+  document.getElementById('dispose-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('dispose-proceeds').value = '';
+  document.getElementById('dispose-notes').value = '';
+  openModal('dispose-modal');
+}
+
+async function saveDisposal() {
+  const errEl = document.getElementById('dispose-modal-error');
+  errEl.style.display = 'none';
+  const date = document.getElementById('dispose-date').value;
+  if (!date) { errEl.textContent = 'Disposal date is required.'; errEl.style.display='block'; return; }
+  if (!confirm('This will permanently mark the asset as disposed. Continue?')) return;
+  const btn = document.getElementById('dispose-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', `/api/fixed-assets/${actionAssetId}/dispose`, {
+    date,
+    proceeds: parseFloat(document.getElementById('dispose-proceeds').value) || 0,
+    notes: document.getElementById('dispose-notes').value.trim() || null,
+  });
+  btn.disabled = false;
+  if (!result) return;
+  toast('Asset disposed', 'success');
+  closeModal('dispose-modal');
+  await loadAssets();
+}
+
+async function viewDepreciationSchedule(id) {
+  const data = await api('GET', `/api/reports/depreciation-schedule/${id}`);
+  if (!data) return;
+  const a = allAssets.find(x => x.id === id);
+  const rows = (data.schedule || data || []);
+  const w = window.open('', '_blank');
+  const tableRows = rows.map(r => `<tr>
+    <td>${esc(r.period||r.year||'')}</td>
+    <td style="text-align:right">${fmt(r.opening_book_value||0)}</td>
+    <td style="text-align:right">${fmt(r.depreciation||r.depreciation_charge||0)}</td>
+    <td style="text-align:right">${fmt(r.accumulated_depreciation||0)}</td>
+    <td style="text-align:right">${fmt(r.closing_book_value||r.book_value||0)}</td>
+  </tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><title>Depreciation Schedule</title>
+    <style>body{font-family:Arial,sans-serif;padding:30px;font-size:12px}h2,h3{color:#1e3a5f}
+    table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;border:1px solid #ddd}
+    th{background:#1e3a5f;color:#fff}</style></head>
+    <body><h2>Depreciation Schedule</h2><h3>${esc(a?.name||'Asset')}</h3>
+    <p>Cost: ${fmt(a?.cost||0)} | Salvage: ${fmt(a?.salvage_value||0)} | Life: ${a?.useful_life||'?'} years | Method: ${esc((a?.depreciation_method||'').replace('_',' '))}</p>
+    <table><thead><tr><th>Period</th><th>Opening Book Value</th><th>Depreciation</th><th>Acc. Depreciation</th><th>Closing Book Value</th></tr></thead>
+    <tbody>${tableRows}</tbody></table></body></html>`);
+  w.document.close();
+  w.print();
+}
+
+function printAssetReport() {
+  const el = document.getElementById('asset-report-table');
+  if (!el) return;
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Asset Register</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}h2{color:#1e3a5f}
+    table{width:100%;border-collapse:collapse}th,td{padding:7px 10px;border:1px solid #ddd;text-align:left}
+    th{background:#1e3a5f;color:#fff}.r{text-align:right}</style></head>
+    <body><h2>Fixed Asset Register</h2><p>Generated: ${new Date().toLocaleString()}</p>
+    ${el.outerHTML}</body></html>`);
+  w.document.close();
+  w.print();
+}
+
+// ── TAX ────────────────────────────────────────────────────────────────────────
+function openTaxPeriodModal() {
+  document.getElementById('tax-modal-error').style.display = 'none';
+  document.getElementById('tax-period-name').value = '';
+  document.getElementById('tax-type').value = 'vat';
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const lastOfMonth  = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0];
+  document.getElementById('tax-start-date').value = firstOfMonth;
+  document.getElementById('tax-end-date').value   = lastOfMonth;
+  openModal('tax-period-modal');
+}
+
+async function saveTaxPeriod() {
+  const errEl = document.getElementById('tax-modal-error');
+  errEl.style.display = 'none';
+  const period_name = document.getElementById('tax-period-name').value.trim();
+  const start_date  = document.getElementById('tax-start-date').value;
+  const end_date    = document.getElementById('tax-end-date').value;
+  if (!period_name || !start_date || !end_date) {
+    errEl.textContent = 'All fields are required.'; errEl.style.display='block'; return;
+  }
+  const btn = document.getElementById('tax-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/tax-periods', {
+    period_name, start_date, end_date,
+    tax_type: document.getElementById('tax-type').value,
+  });
+  btn.disabled = false;
+  if (!result) return;
+  toast('Tax period created', 'success');
+  closeModal('tax-period-modal');
+  await loadTaxPeriods();
+}
+
+async function viewTaxSummary(id) {
+  const data = await api('GET', `/api/tax-periods/${id}/summary`);
+  if (!data) return;
+  const p = allTaxPeriods.find(x => x.id === id);
+  const container = document.getElementById('tax-summary-container');
+
+  const invoiceRows = (data.invoices || []).map(i => `<tr>
+    <td>${esc(i.invoice_number||'')}</td>
+    <td>${esc(i.customer_name||'')}</td>
+    <td>${dateStr(i.date)}</td>
+    <td class="r">${fmt(i.taxable_amount||0)}</td>
+    <td class="r" style="color:var(--navy)">${fmt(i.tax_amount||0)}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px">No invoices</td></tr>';
+
+  const billRows = (data.bills || []).map(b => `<tr>
+    <td>${esc(b.bill_number||'')}</td>
+    <td>${esc(b.supplier_name||'')}</td>
+    <td>${dateStr(b.date)}</td>
+    <td class="r">${fmt(b.taxable_amount||0)}</td>
+    <td class="r" style="color:var(--red)">${fmt(b.tax_amount||0)}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px">No bills</td></tr>';
+
+  const netTax = (data.output_tax||0) - (data.input_tax||0);
+
+  container.innerHTML = `
+    <div class="section-card" style="margin-top:16px">
+      <div class="section-header">
+        <div class="section-title">Tax Summary — ${esc(p?.period_name||p?.name||'')}</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('tax-summary-container').innerHTML=''">Close</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Output Tax (Sales)</div><div class="kpi-value" style="color:var(--navy)">${fmt(data.output_tax||0)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Input Tax (Purchases)</div><div class="kpi-value" style="color:var(--green)">${fmt(data.input_tax||0)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Net Tax Payable</div><div class="kpi-value" style="color:${netTax>=0?'var(--red)':'var(--green)'}">${fmt(netTax)}</div></div>
+      </div>
+      <div style="margin-bottom:12px;font-weight:700">Output Tax — Invoices</div>
+      <div class="table-wrap" style="margin-bottom:16px">
+        <table class="data-table">
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th class="r">Taxable Amount</th><th class="r">Output Tax</th></tr></thead>
+          <tbody>${invoiceRows}</tbody>
+        </table>
+      </div>
+      <div style="margin-bottom:12px;font-weight:700">Input Tax — Bills</div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Bill #</th><th>Supplier</th><th>Date</th><th class="r">Taxable Amount</th><th class="r">Input Tax</th></tr></thead>
+          <tbody>${billRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function fileTaxPeriod(id) {
+  if (!confirm('File this tax period? This marks it as filed and cannot be undone.')) return;
+  const result = await api('POST', `/api/tax-periods/${id}/file`);
+  if (!result) return;
+  toast('Tax period filed', 'success');
+  await loadTaxPeriods();
+}
+</script>
+</body>
+</html>

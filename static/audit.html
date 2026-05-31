@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Audit & Anomalies</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+<style>
+/* ── ANOMALY CARDS ───────────────────────────────────────────────────────────── */
+.anomaly-card{border-radius:10px;border:1px solid var(--border);padding:14px 16px;
+  margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;transition:background .15s}
+.anomaly-card:hover{background:#f7fafc}
+.anomaly-card.high   {border-left:4px solid var(--red)}
+.anomaly-card.medium {border-left:4px solid var(--yellow)}
+.anomaly-card.low    {border-left:4px solid var(--blue)}
+.anomaly-card.dismissed{opacity:.45;border-left-color:var(--border)}
+.anomaly-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.anomaly-body{flex:1;min-width:0}
+.anomaly-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.anomaly-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.anomaly-meta{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.anomaly-meta span{font-size:11px;color:var(--muted)}
+.anomaly-actions{display:flex;gap:6px;flex-shrink:0;flex-direction:column;align-items:flex-end}
+
+/* ── SEVERITY SUMMARY ────────────────────────────────────────────────────────── */
+.sev-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.sev-pill{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;
+  font-weight:700;cursor:default}
+.sev-pill.high   {background:#fff5f5;color:var(--red);border:1.5px solid #fed7d7}
+.sev-pill.medium {background:#fffaf0;color:var(--yellow);border:1.5px solid #faf089}
+.sev-pill.low    {background:#ebf4ff;color:var(--blue);border:1.5px solid #bee3f8}
+.sev-pill.all    {background:#f7fafc;color:var(--muted);border:1.5px solid var(--border)}
+.sev-count{font-size:22px;font-weight:800}
+.sev-lbl  {font-size:11px;opacity:.75}
+
+/* ── AUDIT LOG ────────────────────────────────────────────────────────────────── */
+.action-badge{display:inline-flex;padding:2px 8px;border-radius:12px;
+  font-size:11px;font-weight:700;font-family:monospace}
+.ab-create  {background:#f0fff4;color:var(--green)}
+.ab-update  {background:#ebf4ff;color:var(--blue)}
+.ab-delete  {background:#fff5f5;color:var(--red)}
+.ab-void    {background:#fff5f5;color:var(--red)}
+.ab-login   {background:#f7fafc;color:var(--muted)}
+.ab-approve {background:#f0fff4;color:var(--green)}
+.ab-default {background:#f7fafc;color:var(--muted)}
+
+/* ── SUMMARY STATS ────────────────────────────────────────────────────────────── */
+.audit-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:12px;margin-bottom:20px}
+.astat{background:#fff;border-radius:10px;border:1px solid var(--border);
+  padding:14px 16px;box-shadow:var(--shadow-sm)}
+.astat-val{font-size:24px;font-weight:800;color:var(--navy)}
+.astat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="anomalies" onclick="switchTab('anomalies')">🔍 Anomaly Detection</button>
+    <button class="tab-btn" data-tab="auditlog"  onclick="switchTab('auditlog')">📋 Audit Log</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       TAB 1 — ANOMALY DETECTION
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-anomalies">
+
+    <!-- Header actions -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🔍 Anomaly Detection</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="scanned-at">
+          Running 11 detection rules on your financial data…
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="show-dismissed" onchange="applyFilter()">
+          Show dismissed
+        </label>
+        <button class="btn btn-sm btn-primary" onclick="loadAnomalies()">↻ Re-scan</button>
+      </div>
+    </div>
+
+    <!-- Severity summary bar -->
+    <div class="sev-bar" id="sev-bar">
+      <div class="sev-pill all"><div><div class="sev-count" id="sc-total">—</div><div class="sev-lbl">Total Issues</div></div></div>
+      <div class="sev-pill high"><div><div class="sev-count" id="sc-high">—</div><div class="sev-lbl">High</div></div></div>
+      <div class="sev-pill medium"><div><div class="sev-count" id="sc-med">—</div><div class="sev-lbl">Medium</div></div></div>
+      <div class="sev-pill low"><div><div class="sev-count" id="sc-low">—</div><div class="sev-lbl">Low</div></div></div>
+    </div>
+
+    <!-- Severity filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button class="btn btn-sm btn-primary" id="f-all"    onclick="setFilter('all')">All</button>
+      <button class="btn btn-sm btn-outline" id="f-high"   onclick="setFilter('high')">🔴 High</button>
+      <button class="btn btn-sm btn-outline" id="f-medium" onclick="setFilter('medium')">🟡 Medium</button>
+      <button class="btn btn-sm btn-outline" id="f-low"    onclick="setFilter('low')">🔵 Low</button>
+    </div>
+
+    <div id="anomaly-list">
+      <div class="empty-state"><div class="empty-icon">🔍</div>
+        <div class="empty-title">Scanning…</div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       TAB 2 — AUDIT LOG
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-auditlog">
+
+    <!-- Stats -->
+    <div class="audit-stats" id="audit-stats">
+      <div class="astat"><div class="astat-val" id="as-today">—</div><div class="astat-lbl">Actions Today</div></div>
+      <div class="astat"><div class="astat-val" id="as-week">—</div><div class="astat-lbl">This Week</div></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">📋 Activity Log</div>
+        <div class="section-actions" style="flex-wrap:wrap">
+          <input type="text" class="search-input" id="al-search"
+                 placeholder="Search action, entity…" oninput="loadAuditLog()">
+          <select id="al-user" onchange="loadAuditLog()"
+                  style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Users</option>
+          </select>
+          <select id="al-entity" onchange="loadAuditLog()"
+                  style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Entities</option>
+            <option value="journal_entries">Journal Entries</option>
+            <option value="invoices">Invoices</option>
+            <option value="bills">Bills</option>
+            <option value="accounts">Accounts</option>
+            <option value="customers">Customers</option>
+            <option value="suppliers">Suppliers</option>
+            <option value="employees">Employees</option>
+            <option value="payroll_runs">Payroll Runs</option>
+            <option value="fixed_assets">Fixed Assets</option>
+            <option value="auth">Auth</option>
+          </select>
+          <input type="date" id="al-from" onchange="loadAuditLog()"
+                 style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+          <input type="date" id="al-to"   onchange="loadAuditLog()"
+                 style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>ID</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="audit-body">
+            <tr><td colspan="6"><div class="empty-state">
+              <div class="empty-icon">📋</div>
+              <div class="empty-title">Loading audit log…</div>
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="audit-pagination" class="pagination" style="margin-top:12px"></div>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let allAnomalies = [];
+let dismissed    = new Set();
+let severityFilter = 'all';
+let auditPage    = 1;
+const AUDIT_PER_PAGE = 50;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('audit', 'Audit & Anomalies');
+  initTabs('anomalies');
+  await Promise.all([loadAnomalies(), loadAuditSummary(), loadAuditLog()]);
+})();
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ANOMALIES
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadAnomalies() {
+  document.getElementById('anomaly-list').innerHTML =
+    '<div class="empty-state"><div class="empty-icon" style="animation:pulse 1s infinite">🔍</div><div class="empty-title">Scanning transactions…</div></div>';
+  const data = await api('GET', '/api/anomalies');
+  if (!data) return;
+
+  allAnomalies = data.anomalies || [];
+  const c = data.counts || {};
+
+  document.getElementById('sc-total').textContent = c.total || 0;
+  document.getElementById('sc-high').textContent  = c.high  || 0;
+  document.getElementById('sc-med').textContent   = c.medium|| 0;
+  document.getElementById('sc-low').textContent   = c.low   || 0;
+
+  const scanned = data.scanned_at ? new Date(data.scanned_at).toLocaleTimeString() : '';
+  document.getElementById('scanned-at').textContent =
+    `Last scanned: ${scanned} — ${allAnomalies.length} active issue${allAnomalies.length!==1?'s':''} found`;
+
+  applyFilter();
+
+  // Also load dismissed count
+  loadDismissed();
+}
+
+async function loadDismissed() {
+  // Can refresh to show dismissed — just re-render with current filter
+}
+
+function setFilter(f) {
+  severityFilter = f;
+  ['all','high','medium','low'].forEach(s => {
+    const btn = document.getElementById(`f-${s}`);
+    if (btn) {
+      btn.className = 'btn btn-sm ' + (s === f ? 'btn-primary' : 'btn-outline');
+    }
+  });
+  applyFilter();
+}
+
+function applyFilter() {
+  const showDismissed = document.getElementById('show-dismissed')?.checked;
+  let items = allAnomalies;
+  if (severityFilter !== 'all') items = items.filter(a => a.severity === severityFilter);
+
+  const container = document.getElementById('anomaly-list');
+  if (!items.length) {
+    const noIssuesMsg = severityFilter === 'all'
+      ? '✅ No anomalies detected — your books look clean!'
+      : `✅ No ${severityFilter} severity issues found`;
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <div class="empty-title">${noIssuesMsg}</div>
+      <div class="empty-sub">Re-scan at any time to check for new issues.</div>
+    </div>`;
+    return;
+  }
+
+  // Group by severity
+  const groups = { high: [], medium: [], low: [] };
+  items.forEach(a => groups[a.severity]?.push(a));
+
+  let html = '';
+  const sections = [
+    { key: 'high',   icon: '🔴', label: 'High Severity — Investigate Immediately' },
+    { key: 'medium', icon: '🟡', label: 'Medium Severity — Review Soon' },
+    { key: 'low',    icon: '🔵', label: 'Low Severity — Worth Checking' },
+  ];
+
+  sections.forEach(({ key, icon, label }) => {
+    if (!groups[key].length) return;
+    html += `<div style="font-size:11px;font-weight:800;color:var(--muted);
+                text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px 0">
+      ${icon} ${label} (${groups[key].length})
+    </div>`;
+    groups[key].forEach(a => { html += renderAnomalyCard(a); });
+  });
+
+  container.innerHTML = html;
+}
+
+function renderAnomalyCard(a) {
+  const ruleIcons = {
+    duplicate_amount:  '📋',
+    reversed_balance:  '⚖️',
+    future_dated:      '📅',
+    large_transaction: '💰',
+    round_number:      '🔢',
+    weekend_posting:   '📆',
+    velocity:          '⚡',
+    stale_invoice:     '📬',
+    duplicate_invoice: '🧾',
+    vat_overdue:       '🏛️',
+    vat_uncovered:     '📊',
+  };
+  const icon = ruleIcons[a.rule] || '⚠️';
+
+  const amtHtml = a.amount != null
+    ? `<span>💰 ${fmt(Math.abs(a.amount))}</span>`
+    : '';
+
+  const viewLink = a.entity_type && a.entity_id
+    ? entityLink(a.entity_type, a.entity_id, a)
+    : '';
+
+  return `<div class="anomaly-card ${a.severity}" id="ac-${a.fingerprint}">
+    <div class="anomaly-icon">${icon}</div>
+    <div class="anomaly-body">
+      <div class="anomaly-title">${esc(a.title)}</div>
+      <div class="anomaly-desc">${esc(a.description)}</div>
+      <div class="anomaly-meta">
+        ${amtHtml}
+        ${a.date ? `<span>📅 ${dateStr(a.date)}</span>` : ''}
+        <span style="background:#f0f0f0;padding:1px 6px;border-radius:4px;
+          font-size:10px;font-family:monospace">${a.rule}</span>
+      </div>
+    </div>
+    <div class="anomaly-actions">
+      ${viewLink}
+      <button class="btn btn-xs btn-outline" onclick="dismissAnomaly('${a.fingerprint}','${a.rule}')">
+        ✓ Dismiss
+      </button>
+    </div>
+  </div>`;
+}
+
+function entityLink(type, id, a) {
+  const routes = {
+    journal_entry: '/journals',
+    invoice:       '/customers#invoices',
+    bill:          '/suppliers#bills',
+    account:       '/accounts',
+    user:          '/settings',
+    tax_period:    '/reports#vat',
+  };
+  const href = routes[type] || '#';
+  if (href === '#') return '';
+  return `<a href="${href}" class="btn btn-xs btn-outline" target="_blank">👁 View</a>`;
+}
+
+async function dismissAnomaly(fingerprint, ruleType) {
+  const result = await api('POST', '/api/anomalies/dismiss', { fingerprint, rule_type: ruleType });
+  if (!result) return;
+  // Remove card with animation
+  const card = document.getElementById(`ac-${fingerprint}`);
+  if (card) {
+    card.style.transition = 'opacity .3s, height .3s, margin .3s';
+    card.style.opacity = '0';
+    card.style.height  = card.offsetHeight + 'px';
+    setTimeout(() => {
+      card.style.height  = '0';
+      card.style.margin  = '0';
+      card.style.padding = '0';
+      card.style.overflow = 'hidden';
+    }, 300);
+    setTimeout(() => card.remove(), 600);
+  }
+  // Update counts
+  allAnomalies = allAnomalies.filter(a => a.fingerprint !== fingerprint);
+  const c = { high: 0, medium: 0, low: 0, total: allAnomalies.length };
+  allAnomalies.forEach(a => c[a.severity] = (c[a.severity]||0) + 1);
+  document.getElementById('sc-total').textContent = c.total;
+  document.getElementById('sc-high').textContent  = c.high;
+  document.getElementById('sc-med').textContent   = c.medium;
+  document.getElementById('sc-low').textContent   = c.low;
+  toast('Issue dismissed', 'success');
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AUDIT LOG
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadAuditSummary() {
+  const d = await api('GET', '/api/audit-log/summary');
+  if (!d) return;
+  document.getElementById('as-today').textContent = d.today_count || 0;
+  document.getElementById('as-week').textContent  = d.week_count  || 0;
+
+  // Populate user filter
+  const userSel = document.getElementById('al-user');
+  if (d.top_users?.length) {
+    userSel.innerHTML = '<option value="">All Users</option>' +
+      d.top_users.map(u => `<option value="">${esc(u.full_name||u.email||'Unknown')}</option>`).join('');
+  }
+}
+
+async function loadAuditLog(page = 1) {
+  auditPage = page;
+  const search = document.getElementById('al-search')?.value || '';
+  const entity = document.getElementById('al-entity')?.value || '';
+  const from   = document.getElementById('al-from')?.value   || '';
+  const to     = document.getElementById('al-to')?.value     || '';
+  const params = [`page=${page}`, `per_page=${AUDIT_PER_PAGE}`];
+  if (search) params.push(`search=${encodeURIComponent(search)}`);
+  if (entity) params.push(`entity=${encodeURIComponent(entity)}`);
+  if (from)   params.push(`date_from=${from}`);
+  if (to)     params.push(`date_to=${to}`);
+
+  const data = await api('GET', `/api/audit-log?${params.join('&')}`);
+  if (!data) return;
+
+  renderAuditTable(data.items || []);
+  renderAuditPagination(data.total, data.pages, data.page);
+}
+
+function renderAuditTable(items) {
+  const tbody = document.getElementById('audit-body');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No audit entries found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => {
+    const action = item.action || '';
+    const cls    = action.includes('create') || action.includes('seed') ? 'ab-create'
+                 : action.includes('update') ? 'ab-update'
+                 : action.includes('delete') ? 'ab-delete'
+                 : action.includes('void')   ? 'ab-void'
+                 : action.includes('login')  ? 'ab-login'
+                 : action.includes('approve') ? 'ab-approve'
+                 : 'ab-default';
+    const ts = item.timestamp || '';
+    const dt = ts ? new Date(ts).toLocaleString(undefined,
+      { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '—';
+    return `<tr>
+      <td style="font-size:11px;white-space:nowrap;color:var(--muted)">${dt}</td>
+      <td>
+        <div style="font-size:12px;font-weight:600">${esc(item.user_name||'System')}</div>
+        <div style="font-size:10px;color:var(--muted)">${esc(item.user_role||'')}</div>
+      </td>
+      <td><span class="action-badge ${cls}">${esc(action)}</span></td>
+      <td style="font-size:12px">${esc(item.entity||'')}</td>
+      <td style="font-size:12px;color:var(--muted)">${item.entity_id||'—'}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:200px;overflow:hidden;
+                 text-overflow:ellipsis;white-space:nowrap" title="${esc(item.details||'')}">
+        ${esc(item.details||'—')}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAuditPagination(total, pages, current) {
+  const pg = document.getElementById('audit-pagination');
+  if (pages <= 1) { pg.innerHTML = `<span class="page-info">${total} entries</span>`; return; }
+  let html = `<span class="page-info">Page ${current} of ${pages} (${total} entries)</span>`;
+  if (current > 1) html += `<button class="page-btn" onclick="loadAuditLog(${current-1})">‹</button>`;
+  for (let i = Math.max(1, current-2); i <= Math.min(pages, current+2); i++) {
+    html += `<button class="page-btn${i===current?' active':''}" onclick="loadAuditLog(${i})">${i}</button>`;
+  }
+  if (current < pages) html += `<button class="page-btn" onclick="loadAuditLog(${current+1})">›</button>`;
+  pg.innerHTML = html;
+}
+
+// Pulse animation for loading state
+const style = document.createElement('style');
+style.textContent = '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>

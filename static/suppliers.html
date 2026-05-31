@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Suppliers & AP</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="suppliers" onclick="switchTab('suppliers')">Suppliers</button>
+    <button class="tab-btn" data-tab="bills"     onclick="switchTab('bills')">Bills</button>
+    <button class="tab-btn" data-tab="payments"  onclick="switchTab('payments')">Bill Payments</button>
+  </div>
+
+  <!-- ── SUPPLIERS ──────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-suppliers">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Suppliers</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="sup-search" placeholder="Search…" oninput="renderSuppliers()">
+          <button class="btn btn-sm btn-primary" onclick="openSupplierModal()">+ New Supplier</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Currency</th><th class="r">Outstanding</th><th>Actions</th></tr></thead>
+          <tbody id="suppliers-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BILLS ──────────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-bills">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Bills</div>
+        <div class="section-actions">
+          <input type="text" class="search-input" id="bill-search" placeholder="Search…" oninput="renderBills()">
+          <select id="bill-status" onchange="renderBills()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="overdue">Overdue</option>
+            <option value="void">Void</option>
+          </select>
+          <select id="bill-supplier-filter" onchange="renderBills()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+            <option value="">All Suppliers</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="openBillModal()">+ New Bill</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Bill #</th><th>Supplier</th><th>Date</th><th>Due Date</th><th class="r">Total</th><th class="r">Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="bills-body"><tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BILL PAYMENTS ──────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-payments">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Bill Payments</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="openPaymentModal()">+ New Payment</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Payment #</th><th>Supplier</th><th>Bill</th><th>Date</th><th class="r">Amount</th><th>Method</th></tr></thead>
+          <tbody id="payments-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── SUPPLIER MODAL ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="supplier-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="sup-modal-title">New Supplier</div>
+      <button class="modal-close" onclick="closeModal('supplier-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="sup-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Supplier Name *</label><input type="text" id="sup-name" placeholder="Company name"></div>
+        <div class="field"><label>Email</label><input type="email" id="sup-email" placeholder="email@example.com"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Phone</label><input type="text" id="sup-phone"></div>
+        <div class="field"><label>Currency</label><input type="text" id="sup-currency" placeholder="USD" maxlength="3"></div>
+      </div>
+      <div class="field"><label>Address</label><textarea id="sup-address" rows="2" placeholder="Street address…" style="resize:vertical"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>City</label><input type="text" id="sup-city"></div>
+        <div class="field"><label>Country</label><input type="text" id="sup-country"></div>
+      </div>
+      <div class="field"><label>Tax / VAT Number</label><input type="text" id="sup-tax-number" placeholder="Optional"></div>
+      <div class="field"><label>Payment Terms (days)</label><input type="number" id="sup-payment-terms" placeholder="30" min="0"></div>
+      <div class="field"><label>Notes</label><textarea id="sup-notes" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('supplier-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSupplier()" id="sup-save-btn">Save Supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BILL MODAL ─────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="bill-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">New Bill</div>
+      <button class="modal-close" onclick="closeModal('bill-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bill-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Supplier *</label><select id="bill-supplier"><option value="">— Select —</option></select></div>
+        <div class="field"><label>Bill Date *</label><input type="date" id="bill-date"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Due Date</label><input type="date" id="bill-due-date"></div>
+        <div class="field"><label>Reference</label><input type="text" id="bill-reference" placeholder="Supplier Invoice #"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="bill-notes" rows="2" style="resize:vertical"></textarea></div>
+
+      <div style="margin:16px 0 8px;font-size:12px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.04em">Line Items</div>
+      <div class="table-wrap" style="margin-bottom:12px">
+        <table class="lines-table">
+          <thead><tr><th>Description</th><th style="min-width:160px">Account</th><th style="width:80px">Qty</th><th style="width:110px">Unit Cost</th><th style="width:80px">Tax %</th><th style="width:100px">Amount</th><th style="width:36px"></th></tr></thead>
+          <tbody id="bill-lines-body"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="addBillLine()">+ Add Line</button>
+      <div class="totals-row" style="margin-top:12px">
+        <span>Subtotal: <strong id="bill-subtotal">0.00</strong></span>
+        <span>Tax: <strong id="bill-tax-total">0.00</strong></span>
+        <span>Total: <strong id="bill-total" style="color:var(--navy);font-size:15px">0.00</strong></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bill-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBill()" id="bill-save-btn">Create Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BILL VIEW MODAL ────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="bill-view-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="bill-view-title">Bill Detail</div>
+      <button class="modal-close" onclick="closeModal('bill-view-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="bill-view-body">Loading…</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bill-view-modal')">Close</button>
+      <button class="btn btn-outline" onclick="printBill()">Print</button>
+      <button class="btn btn-danger" id="bill-void-btn" onclick="voidCurrentBill()" style="display:none">Void</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BILL PAYMENT MODAL ─────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="payment-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Bill Payment</div>
+      <button class="modal-close" onclick="closeModal('payment-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="payment-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Supplier *</label><select id="pay-supplier" onchange="loadSupplierBills()"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Bill (optional)</label><select id="pay-bill"><option value="">— Select bill —</option></select></div>
+      <div class="field-row">
+        <div class="field"><label>Date *</label><input type="date" id="pay-date"></div>
+        <div class="field"><label>Amount *</label><input type="number" id="pay-amount" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>Payment Method</label>
+        <select id="pay-method">
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cash">Cash</option>
+          <option value="cheque">Cheque</option>
+          <option value="card">Card</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Reference</label><input type="text" id="pay-reference" placeholder="Cheque #, Transaction ID…"></div>
+      <div class="field"><label>Notes</label><textarea id="pay-notes" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('payment-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayment()" id="pay-save-btn">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/shared.js"></script>
+<script>
+let allSuppliers = [];
+let allBills     = [];
+let allPayments  = [];
+let allAccounts  = [];
+let editingSupplierId = null;
+let viewingBillId = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('suppliers', 'Suppliers & AP');
+  initTabs('suppliers');
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('bill-date').value = today;
+  document.getElementById('pay-date').value = today;
+  await Promise.all([loadSuppliers(), loadBills(), loadPayments(), loadAccounts()]);
+})();
+
+async function loadAccounts() {
+  const data = await api('GET', '/api/accounts');
+  if (data) allAccounts = data;
+}
+
+async function loadSuppliers() {
+  const data = await api('GET', '/api/suppliers');
+  if (!data) return;
+  allSuppliers = Array.isArray(data) ? data : (data.suppliers || data.items || []);
+  renderSuppliers();
+  populateSupplierSelects();
+}
+
+async function loadBills() {
+  const data = await api('GET', '/api/bills');
+  if (!data) return;
+  allBills = Array.isArray(data) ? data : (data.bills || data.items || []);
+  renderBills();
+}
+
+async function loadPayments() {
+  const data = await api('GET', '/api/bill-payments');
+  if (!data) return;
+  allPayments = Array.isArray(data) ? data : (data.payments || data.items || []);
+  renderPayments();
+}
+
+function populateSupplierSelects() {
+  const opts = allSuppliers.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  ['bill-supplier','pay-supplier'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = '<option value="">— Select —</option>' + opts;
+  });
+  const filterSel = document.getElementById('bill-supplier-filter');
+  if (filterSel) filterSel.innerHTML = '<option value="">All Suppliers</option>' + opts;
+}
+
+function renderSuppliers() {
+  const search = (document.getElementById('sup-search').value || '').toLowerCase();
+  let rows = allSuppliers.filter(s =>
+    !search || s.name.toLowerCase().includes(search) || (s.email||'').toLowerCase().includes(search)
+  );
+  const tbody = document.getElementById('suppliers-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">No suppliers found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(s => {
+    const bal = parseFloat(s.outstanding_balance||0);
+    return `<tr>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td>${esc(s.email||'—')}</td>
+      <td>${esc(s.phone||'—')}</td>
+      <td>${esc(s.currency||'—')}</td>
+      <td class="r" style="color:${bal>0?'var(--red)':'var(--muted)'};font-weight:700">${fmt(bal)}</td>
+      <td><button class="btn btn-xs btn-outline" onclick="editSupplier(${s.id})">Edit</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBills() {
+  const search   = (document.getElementById('bill-search').value||'').toLowerCase();
+  const status   = document.getElementById('bill-status').value;
+  const suppId   = document.getElementById('bill-supplier-filter').value;
+  let rows = allBills.filter(b => {
+    if (status && b.status !== status) return false;
+    if (suppId && String(b.supplier_id) !== String(suppId)) return false;
+    if (search && !b.bill_number?.toLowerCase().includes(search) &&
+        !b.supplier_name?.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('bills-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No bills found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(b => {
+    const overdue = b.status !== 'paid' && b.status !== 'void' && b.due_date && b.due_date < new Date().toISOString().split('T')[0];
+    return `<tr${overdue?' style="background:#fff5f5"':''}>
+      <td><strong>${esc(b.bill_number)}</strong></td>
+      <td>${esc(b.supplier_name||'')}</td>
+      <td>${dateStr(b.date)}</td>
+      <td style="${overdue?'color:var(--red);font-weight:700':''}">${dateStr(b.due_date)}</td>
+      <td class="r">${fmt(b.total_amount||0)}</td>
+      <td class="r" style="color:${(b.balance_due||0)>0?'var(--red)':'var(--green)'};font-weight:700">${fmt(b.balance_due||0)}</td>
+      <td><span class="badge ${b.status}">${b.status}</span></td>
+      <td>
+        <button class="btn btn-xs btn-outline" onclick="viewBill(${b.id})">View</button>
+        ${b.status !== 'void' ? `<button class="btn btn-xs btn-danger" onclick="voidBill(${b.id})" style="margin-left:4px">Void</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPayments() {
+  const tbody = document.getElementById('payments-body');
+  if (!allPayments.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">No payments yet</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allPayments.map(p => `<tr>
+    <td><strong>${esc(p.payment_number||p.reference||'—')}</strong></td>
+    <td>${esc(p.supplier_name||'')}</td>
+    <td>${esc(p.bill_number||'—')}</td>
+    <td>${dateStr(p.date)}</td>
+    <td class="r" style="color:var(--red);font-weight:700">${fmt(p.amount||0)}</td>
+    <td><span class="badge info">${esc(p.payment_method||p.method||'')}</span></td>
+  </tr>`).join('');
+}
+
+function openSupplierModal() {
+  editingSupplierId = null;
+  document.getElementById('sup-modal-title').textContent = 'New Supplier';
+  ['sup-name','sup-email','sup-phone','sup-currency','sup-address','sup-city','sup-country','sup-tax-number','sup-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('sup-payment-terms').value = '30';
+  document.getElementById('sup-modal-error').style.display = 'none';
+  openModal('supplier-modal');
+}
+
+function editSupplier(id) {
+  const s = allSuppliers.find(x => x.id === id);
+  if (!s) return;
+  editingSupplierId = id;
+  document.getElementById('sup-modal-title').textContent = 'Edit Supplier';
+  document.getElementById('sup-name').value = s.name || '';
+  document.getElementById('sup-email').value = s.email || '';
+  document.getElementById('sup-phone').value = s.phone || '';
+  document.getElementById('sup-currency').value = s.currency || '';
+  document.getElementById('sup-address').value = s.address || '';
+  document.getElementById('sup-city').value = s.city || '';
+  document.getElementById('sup-country').value = s.country || '';
+  document.getElementById('sup-tax-number').value = s.tax_number || '';
+  document.getElementById('sup-payment-terms').value = s.payment_terms || 30;
+  document.getElementById('sup-notes').value = s.notes || '';
+  document.getElementById('sup-modal-error').style.display = 'none';
+  openModal('supplier-modal');
+}
+
+async function saveSupplier() {
+  const errEl = document.getElementById('sup-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('sup-name').value.trim();
+  if (!name) { errEl.textContent = 'Supplier name is required.'; errEl.style.display='block'; return; }
+  const payload = {
+    name,
+    email: document.getElementById('sup-email').value.trim() || null,
+    phone: document.getElementById('sup-phone').value.trim() || null,
+    currency: document.getElementById('sup-currency').value.trim() || null,
+    address: document.getElementById('sup-address').value.trim() || null,
+    city: document.getElementById('sup-city').value.trim() || null,
+    country: document.getElementById('sup-country').value.trim() || null,
+    tax_number: document.getElementById('sup-tax-number').value.trim() || null,
+    payment_terms: parseInt(document.getElementById('sup-payment-terms').value) || 30,
+    notes: document.getElementById('sup-notes').value.trim() || null,
+  };
+  const btn = document.getElementById('sup-save-btn');
+  btn.disabled = true;
+  const result = editingSupplierId
+    ? await api('PUT', `/api/suppliers/${editingSupplierId}`, payload)
+    : await api('POST', '/api/suppliers', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast(editingSupplierId ? 'Supplier updated' : 'Supplier created', 'success');
+  closeModal('supplier-modal');
+  await loadSuppliers();
+}
+
+function billLineAccountOptions() {
+  return '<option value="">— Account —</option>' +
+    allAccounts.filter(a => a.type === 'expense' || a.type === 'asset').map(a =>
+      `<option value="${a.id}">${esc(a.code)} — ${esc(a.name)}</option>`).join('');
+}
+
+function addBillLine() {
+  const tbody = document.getElementById('bill-lines-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="bill-line-desc" placeholder="Description…" oninput="calcBillTotals()"></td>
+    <td><select class="bill-line-account">${billLineAccountOptions()}</select></td>
+    <td><input type="number" class="bill-line-qty" value="1" min="0" step="0.01" oninput="calcBillTotals()"></td>
+    <td><input type="number" class="bill-line-price" value="0" min="0" step="0.01" oninput="calcBillTotals()"></td>
+    <td><input type="number" class="bill-line-tax" value="0" min="0" max="100" step="0.01" oninput="calcBillTotals()"></td>
+    <td class="bill-line-amount r" style="font-weight:700">0.00</td>
+    <td><button style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px" onclick="this.closest('tr').remove();calcBillTotals()">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  calcBillTotals();
+}
+
+function calcBillTotals() {
+  let sub = 0, tax = 0;
+  document.querySelectorAll('#bill-lines-body tr').forEach(tr => {
+    const qty   = parseFloat(tr.querySelector('.bill-line-qty')?.value) || 0;
+    const price = parseFloat(tr.querySelector('.bill-line-price')?.value) || 0;
+    const taxR  = parseFloat(tr.querySelector('.bill-line-tax')?.value) || 0;
+    const lineAmt = qty * price;
+    sub += lineAmt;
+    tax += lineAmt * taxR / 100;
+    const amtEl = tr.querySelector('.bill-line-amount');
+    if (amtEl) amtEl.textContent = (lineAmt + lineAmt*taxR/100).toFixed(2);
+  });
+  document.getElementById('bill-subtotal').textContent = sub.toFixed(2);
+  document.getElementById('bill-tax-total').textContent = tax.toFixed(2);
+  document.getElementById('bill-total').textContent = (sub + tax).toFixed(2);
+}
+
+function openBillModal() {
+  document.getElementById('bill-modal-error').style.display = 'none';
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('bill-date').value = today;
+  document.getElementById('bill-due-date').value = '';
+  document.getElementById('bill-reference').value = '';
+  document.getElementById('bill-notes').value = '';
+  document.getElementById('bill-lines-body').innerHTML = '';
+  addBillLine();
+  calcBillTotals();
+  openModal('bill-modal');
+}
+
+async function saveBill() {
+  const errEl = document.getElementById('bill-modal-error');
+  errEl.style.display = 'none';
+  const supplier_id = document.getElementById('bill-supplier').value;
+  const date = document.getElementById('bill-date').value;
+  if (!supplier_id || !date) {
+    errEl.textContent = 'Supplier and date are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const lines = [];
+  document.querySelectorAll('#bill-lines-body tr').forEach(tr => {
+    const description = tr.querySelector('.bill-line-desc')?.value.trim();
+    const account_id  = tr.querySelector('.bill-line-account')?.value;
+    const quantity    = parseFloat(tr.querySelector('.bill-line-qty')?.value) || 0;
+    const unit_price  = parseFloat(tr.querySelector('.bill-line-price')?.value) || 0;
+    const tax_rate    = parseFloat(tr.querySelector('.bill-line-tax')?.value) || 0;
+    if (description || quantity) lines.push({ description, account_id: account_id ? parseInt(account_id) : null, quantity, unit_price, tax_rate });
+  });
+  if (!lines.length) {
+    errEl.textContent = 'Add at least one line item.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const payload = {
+    supplier_id: parseInt(supplier_id),
+    date,
+    due_date: document.getElementById('bill-due-date').value || null,
+    reference: document.getElementById('bill-reference').value.trim() || null,
+    notes: document.getElementById('bill-notes').value.trim() || null,
+    lines,
+  };
+  const btn = document.getElementById('bill-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/bills', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast('Bill created', 'success');
+  closeModal('bill-modal');
+  await loadBills();
+}
+
+async function viewBill(id) {
+  const bill = allBills.find(b => b.id === id);
+  if (!bill) return;
+  viewingBillId = id;
+  document.getElementById('bill-view-title').textContent = `Bill ${bill.bill_number}`;
+  document.getElementById('bill-void-btn').style.display = bill.status !== 'void' ? 'inline-flex' : 'none';
+  const lines = (bill.lines || []).map(l => `<tr>
+    <td>${esc(l.description||'')}</td>
+    <td class="r">${l.quantity||1}</td>
+    <td class="r">${fmt(l.unit_price||0)}</td>
+    <td class="r">${(l.tax_rate||0)}%</td>
+    <td class="r">${fmt((l.quantity||1)*(l.unit_price||0)*(1+(l.tax_rate||0)/100))}</td>
+  </tr>`).join('');
+  document.getElementById('bill-view-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Supplier</div><div style="font-weight:700">${esc(bill.supplier_name||'')}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Status</div><div><span class="badge ${bill.status}">${bill.status}</span></div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Date</div><div>${dateStr(bill.date)}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Due Date</div><div>${dateStr(bill.due_date)}</div></div>
+      ${bill.reference?`<div><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Reference</div><div>${esc(bill.reference)}</div></div>`:''}
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px">
+      <table class="data-table">
+        <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit Cost</th><th class="r">Tax</th><th class="r">Amount</th></tr></thead>
+        <tbody>${lines}</tbody>
+      </table>
+    </div>
+    <div style="text-align:right">
+      <div>Subtotal: <strong>${fmt(bill.subtotal||0)}</strong></div>
+      <div>Tax: <strong>${fmt(bill.tax_amount||0)}</strong></div>
+      <div style="font-size:16px;font-weight:800;color:var(--navy);margin-top:8px">Total: ${fmt(bill.total_amount||0)}</div>
+      <div style="color:var(--red);font-weight:700">Balance Due: ${fmt(bill.balance_due||0)}</div>
+    </div>
+  `;
+  openModal('bill-view-modal');
+}
+
+function printBill() {
+  const bill = allBills.find(b => b.id === viewingBillId);
+  if (!bill) return;
+  const w = window.open('', '_blank');
+  const lines = (bill.lines||[]).map(l => `<tr>
+    <td>${esc(l.description||'')}</td>
+    <td style="text-align:right">${l.quantity||1}</td>
+    <td style="text-align:right">${fmt(l.unit_price||0)}</td>
+    <td style="text-align:right">${(l.tax_rate||0)}%</td>
+    <td style="text-align:right">${fmt((l.quantity||1)*(l.unit_price||0)*(1+(l.tax_rate||0)/100))}</td>
+  </tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><title>Bill ${bill.bill_number}</title>
+    <style>body{font-family:Arial,sans-serif;padding:40px;font-size:12px}
+    .header{display:flex;justify-content:space-between;margin-bottom:30px}
+    .company{font-size:20px;font-weight:bold;color:#1e3a5f}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{padding:8px 12px;border:1px solid #e2e8f0;text-align:left}
+    th{background:#1e3a5f;color:#fff}.totals{text-align:right;margin-top:16px}</style>
+    </head><body>
+    <div class="header">
+      <div><div class="company">${esc(S.company?.name||'T-Tech')}</div></div>
+      <div style="text-align:right"><div style="font-size:22px;font-weight:bold;color:#1e3a5f">BILL ${esc(bill.bill_number)}</div>
+        <div>Date: ${dateStr(bill.date)}</div><div>Due: ${dateStr(bill.due_date)}</div></div>
+    </div>
+    <div><strong>Supplier:</strong> ${esc(bill.supplier_name||'')}</div>
+    <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Tax</th><th>Amount</th></tr></thead>
+    <tbody>${lines}</tbody></table>
+    <div class="totals">
+      <div>Subtotal: ${fmt(bill.subtotal||0)}</div>
+      <div>Tax: ${fmt(bill.tax_amount||0)}</div>
+      <div style="font-size:16px;font-weight:bold;color:#1e3a5f">TOTAL: ${fmt(bill.total_amount||0)}</div>
+    </div></body></html>`);
+  w.document.close();
+  w.print();
+}
+
+async function voidBill(id) {
+  if (!confirm('Void this bill? This cannot be undone.')) return;
+  const result = await api('POST', `/api/bills/${id}/void`);
+  if (!result) return;
+  toast('Bill voided', 'success');
+  await loadBills();
+}
+
+async function voidCurrentBill() {
+  if (!viewingBillId) return;
+  closeModal('bill-view-modal');
+  await voidBill(viewingBillId);
+}
+
+async function loadSupplierBills() {
+  const suppId = document.getElementById('pay-supplier').value;
+  const sel = document.getElementById('pay-bill');
+  sel.innerHTML = '<option value="">— Select bill —</option>';
+  if (!suppId) return;
+  const bills = allBills.filter(b => String(b.supplier_id) === String(suppId) && b.status !== 'void' && b.status !== 'paid');
+  sel.innerHTML += bills.map(b => `<option value="${b.id}">${esc(b.bill_number)} — ${fmt(b.balance_due||0)} due</option>`).join('');
+}
+
+function openPaymentModal() {
+  document.getElementById('payment-modal-error').style.display = 'none';
+  document.getElementById('pay-supplier').value = '';
+  document.getElementById('pay-bill').innerHTML = '<option value="">— Select bill —</option>';
+  document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pay-amount').value = '';
+  document.getElementById('pay-method').value = 'bank_transfer';
+  document.getElementById('pay-reference').value = '';
+  document.getElementById('pay-notes').value = '';
+  openModal('payment-modal');
+}
+
+async function savePayment() {
+  const errEl = document.getElementById('payment-modal-error');
+  errEl.style.display = 'none';
+  const supplier_id = document.getElementById('pay-supplier').value;
+  const date = document.getElementById('pay-date').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value);
+  if (!supplier_id || !date || !amount) {
+    errEl.textContent = 'Supplier, date, and amount are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const bill_id = document.getElementById('pay-bill').value || null;
+  const payload = {
+    supplier_id: parseInt(supplier_id),
+    bill_id: bill_id ? parseInt(bill_id) : null,
+    date, amount,
+    payment_method: document.getElementById('pay-method').value,
+    reference: document.getElementById('pay-reference').value.trim() || null,
+    notes: document.getElementById('pay-notes').value.trim() || null,
+  };
+  const btn = document.getElementById('pay-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/bill-payments', payload);
+  btn.disabled = false;
+  if (!result) return;
+  toast('Payment recorded', 'success');
+  closeModal('payment-modal');
+  await Promise.all([loadBills(), loadPayments()]);
+}
+</script>
+</body>
+</html>

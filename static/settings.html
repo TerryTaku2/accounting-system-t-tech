@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-Tech — Settings</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/static/shared.css">
+<style>
+.settings-section{margin-bottom:24px}
+.settings-section-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px;
+  padding-bottom:8px;border-bottom:2px solid var(--border);text-transform:uppercase;letter-spacing:.04em}
+.tfa-card{background:#f7fafc;border:1px solid var(--border);border-radius:12px;padding:16px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tfa-info{display:flex;flex-direction:column;gap:4px}
+.tfa-status-enabled{color:var(--green);font-weight:700;font-size:13px}
+.tfa-status-disabled{color:var(--muted);font-weight:700;font-size:13px}
+.company-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;
+  background:rgba(200,150,62,.1);border:1px solid rgba(200,150,62,.3);border-radius:10px;
+  font-size:12px;font-weight:700;color:var(--gold)}
+.key-display{font-family:monospace;font-size:13px;background:#1a202c;color:#68d391;
+  padding:10px 14px;border-radius:8px;word-break:break-all;margin-top:8px}
+
+/* ── PERMISSION GRID ─────────────────────────────────────────────────────── */
+.perms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+  gap:6px;margin-top:8px}
+.perm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border:1.5px solid var(--border);border-radius:8px;cursor:pointer;
+  transition:border-color .15s,background .15s;user-select:none}
+.perm-item:hover{background:#f7fafc}
+.perm-item input[type=checkbox]{accent-color:var(--navy);width:15px;height:15px;flex-shrink:0}
+.perm-item.checked{border-color:var(--navy);background:#eef2ff}
+.perm-item label{font-size:12px;font-weight:600;color:var(--text);cursor:pointer;margin:0}
+.perm-item .perm-icon{font-size:15px;flex-shrink:0}
+.modal.modal-wide{max-width:680px}
+</style>
+</head>
+<body>
+<div id="layout-root"></div>
+
+<main class="page-main">
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="settings"  onclick="switchTab('settings')">Company Settings</button>
+    <button class="tab-btn" data-tab="companies" onclick="switchTab('companies')">Companies</button>
+    <button class="tab-btn" data-tab="apikeys"   onclick="switchTab('apikeys')">API Keys</button>
+  </div>
+
+  <!-- ── COMPANY SETTINGS ───────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Company Information</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="saveCompanySettings()">Save Changes</button>
+        </div>
+      </div>
+      <div id="company-settings-form">
+        <div class="field-row">
+          <div class="field"><label>Company Name *</label><input type="text" id="cs-name" placeholder="Acme Corp"></div>
+          <div class="field"><label>Trading Name</label><input type="text" id="cs-trading-name" placeholder="Acme"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Email</label><input type="email" id="cs-email" placeholder="info@acme.com"></div>
+          <div class="field"><label>Phone</label><input type="text" id="cs-phone"></div>
+        </div>
+        <div class="field"><label>Address</label><textarea id="cs-address" rows="2" style="resize:vertical"></textarea></div>
+        <div class="field-row">
+          <div class="field"><label>City</label><input type="text" id="cs-city"></div>
+          <div class="field"><label>Country</label><input type="text" id="cs-country"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Tax Number / VAT</label><input type="text" id="cs-tax-number"></div>
+          <div class="field"><label>Company Registration #</label><input type="text" id="cs-reg-number"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Currency Code</label><input type="text" id="cs-currency" placeholder="USD" maxlength="3"></div>
+          <div class="field"><label>Currency Symbol</label><input type="text" id="cs-currency-symbol" placeholder="$" maxlength="5"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Financial Year Start</label><input type="text" id="cs-fy-start" placeholder="01-01 (MM-DD)"></div>
+          <div class="field"><label>Tax Rate (%)</label><input type="number" id="cs-tax-rate" step="0.01" min="0" max="100" placeholder="0"></div>
+        </div>
+        <div class="field"><label>Website</label><input type="text" id="cs-website" placeholder="https://acme.com"></div>
+      </div>
+    </div>
+
+    <!-- 2FA -->
+    <div class="section-card">
+      <div class="settings-section-title">Two-Factor Authentication</div>
+      <div class="tfa-card" id="tfa-card">
+        <div class="tfa-info">
+          <div id="tfa-status-text" class="tfa-status-disabled">Checking status…</div>
+          <div style="font-size:12px;color:var(--muted)">Secure your account with an authenticator app like Google Authenticator</div>
+        </div>
+        <div id="tfa-btn-container"></div>
+      </div>
+    </div>
+
+    <!-- Users (admin) -->
+    <div class="section-card" id="users-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">Users</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-outline" onclick="openAddUserModal()">+ Add User</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Module Access</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMPANIES ──────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-companies">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Companies</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="openNewCompanyModal()">+ New Company</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Company Name</th><th>Country</th><th>Currency</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="companies-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🏢</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── API KEYS ───────────────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-apikeys">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">API Keys</div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-primary" onclick="openGenerateKeyModal()">Generate New Key</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">API keys allow external systems to access the T-Tech API. Never share your keys publicly.</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Prefix</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
+          <tbody id="apikeys-body"><tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔑</div><div class="empty-title">Loading…</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── 2FA SETUP MODAL ────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="tfa-setup-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Enable Two-Factor Authentication</div>
+      <button class="modal-close" onclick="closeModal('tfa-setup-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="tfa-setup-error" class="error-msg" style="display:none"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Scan this QR code with your authenticator app, then enter the 6-digit code to verify.</p>
+      <div style="text-align:center;margin-bottom:16px">
+        <div id="tfa-qr-container" style="display:inline-block;padding:12px;background:#fff;border:1px solid var(--border);border-radius:10px"></div>
+      </div>
+      <div style="background:#f7fafc;border-radius:8px;padding:10px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase">Manual Entry Secret</div>
+        <div id="tfa-secret" style="font-family:monospace;font-size:14px;letter-spacing:.08em;font-weight:700"></div>
+      </div>
+      <div class="field">
+        <label>Verification Code *</label>
+        <input type="text" id="tfa-verify-code" placeholder="000000" maxlength="6" pattern="\d{6}" autocomplete="one-time-code" style="letter-spacing:.2em;font-size:20px;text-align:center">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('tfa-setup-modal')">Cancel</button>
+      <button class="btn btn-success" onclick="enableTFA()" id="tfa-enable-btn">Enable 2FA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NEW COMPANY MODAL ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="company-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Company</div>
+      <button class="modal-close" onclick="closeModal('company-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="company-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field"><label>Company Name *</label><input type="text" id="new-co-name" placeholder="Acme Corp"></div>
+      <div class="field-row">
+        <div class="field"><label>Country</label><input type="text" id="new-co-country" placeholder="USA"></div>
+        <div class="field"><label>Currency Code</label><input type="text" id="new-co-currency" placeholder="USD" maxlength="3"></div>
+      </div>
+      <div class="field"><label>Currency Symbol</label><input type="text" id="new-co-symbol" placeholder="$" maxlength="5"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('company-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewCompany()" id="company-save-btn">Create Company</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD / EDIT USER MODAL ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="add-user-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="user-modal-title">Add User</div>
+      <button class="modal-close" onclick="closeModal('add-user-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="user-modal-error" class="error-msg" style="display:none"></div>
+      <div class="field-row">
+        <div class="field"><label>Full Name *</label><input type="text" id="user-fullname" placeholder="Jane Doe"></div>
+        <div class="field"><label>Email *</label><input type="email" id="user-email" placeholder="jane@company.com"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Role</label>
+          <select id="user-role" onchange="onRoleChange()">
+            <option value="accountant">Accountant</option>
+            <option value="cashier">Cashier</option>
+            <option value="auditor">Auditor</option>
+            <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="field"><label id="user-pw-label">Password *</label>
+          <input type="password" id="user-password" placeholder="Temporary password">
+        </div>
+      </div>
+
+      <!-- Module Permissions -->
+      <div class="field" id="user-perms-section">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          <span>Module Access <span style="font-weight:400;color:var(--muted);font-size:11px">(uncheck to deny access)</span></span>
+          <span style="display:flex;gap:6px">
+            <button type="button" class="btn btn-xs btn-outline" onclick="setAllPerms(true)">All</button>
+            <button type="button" class="btn btn-xs btn-outline" onclick="setAllPerms(false)">None</button>
+          </span>
+        </label>
+        <div id="user-perms-grid" class="perms-grid"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;display:none" id="perms-admin-note">Admin role has unrestricted access to all modules.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('add-user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()" id="user-save-btn">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── GENERATE API KEY MODAL ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="apikey-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Generate API Key</div>
+      <button class="modal-close" onclick="closeModal('apikey-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="apikey-modal-error" class="error-msg" style="display:none"></div>
+      <div id="apikey-create-form">
+        <div class="field"><label>Key Name *</label><input type="text" id="apikey-name" placeholder="e.g. Production Integration, Mobile App"></div>
+      </div>
+      <div id="apikey-result" style="display:none">
+        <div class="success-msg">API key generated successfully! Copy it now — it will not be shown again.</div>
+        <div class="key-display" id="apikey-value"></div>
+        <div style="margin-top:10px;font-size:12px;color:var(--muted)">Store this key securely. It cannot be retrieved after closing this dialog.</div>
+      </div>
+    </div>
+    <div class="modal-footer" id="apikey-footer">
+      <button class="btn btn-outline" onclick="closeModal('apikey-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="generateApiKey()" id="apikey-gen-btn">Generate</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/static/shared.js"></script>
+<script>
+let allCompanies = [];
+let allApiKeys   = [];
+let tfaSetupData = null;
+
+(async function() {
+  if (!authGuard()) return;
+  renderLayout('settings', 'Settings');
+  initTabs('settings');
+  await Promise.all([
+    loadCompanySettings(),
+    loadCompanies(),
+    loadApiKeys(),
+    loadTFAStatus(),
+  ]);
+  if (S.user?.role === 'admin') {
+    document.getElementById('users-section').style.display = 'block';
+    await loadUsers();
+  }
+})();
+
+// ── COMPANY SETTINGS ───────────────────────────────────────────────────────────
+async function loadCompanySettings() {
+  const data = await api('GET', '/api/company');
+  if (!data) return;
+  const c = data;
+  document.getElementById('cs-name').value = c.name || '';
+  document.getElementById('cs-trading-name').value = c.trading_name || '';
+  document.getElementById('cs-email').value = c.email || '';
+  document.getElementById('cs-phone').value = c.phone || '';
+  document.getElementById('cs-address').value = c.address || '';
+  document.getElementById('cs-city').value = c.city || '';
+  document.getElementById('cs-country').value = c.country || '';
+  document.getElementById('cs-tax-number').value = c.tax_number || '';
+  document.getElementById('cs-reg-number').value = c.registration_number || '';
+  document.getElementById('cs-currency').value = c.currency || '';
+  document.getElementById('cs-currency-symbol').value = c.currency_symbol || '';
+  document.getElementById('cs-fy-start').value = c.financial_year_start || '';
+  document.getElementById('cs-tax-rate').value = c.default_tax_rate || 0;
+  document.getElementById('cs-website').value = c.website || '';
+
+  // Store in S.company
+  S.company = c;
+  localStorage.setItem('tt_company', JSON.stringify(c));
+}
+
+async function saveCompanySettings() {
+  const name = document.getElementById('cs-name').value.trim();
+  if (!name) { toast('Company name is required', 'error'); return; }
+  const payload = {
+    name,
+    trading_name: document.getElementById('cs-trading-name').value.trim() || null,
+    email: document.getElementById('cs-email').value.trim() || null,
+    phone: document.getElementById('cs-phone').value.trim() || null,
+    address: document.getElementById('cs-address').value.trim() || null,
+    city: document.getElementById('cs-city').value.trim() || null,
+    country: document.getElementById('cs-country').value.trim() || null,
+    tax_number: document.getElementById('cs-tax-number').value.trim() || null,
+    registration_number: document.getElementById('cs-reg-number').value.trim() || null,
+    currency: document.getElementById('cs-currency').value.trim() || null,
+    currency_symbol: document.getElementById('cs-currency-symbol').value.trim() || null,
+    financial_year_start: document.getElementById('cs-fy-start').value.trim() || null,
+    default_tax_rate: parseFloat(document.getElementById('cs-tax-rate').value) || 0,
+    website: document.getElementById('cs-website').value.trim() || null,
+  };
+  const result = await api('PUT', '/api/company', payload);
+  if (!result) return;
+  S.company = result;
+  localStorage.setItem('tt_company', JSON.stringify(result));
+  S.symbol = result.currency_symbol || '$';
+  toast('Company settings saved', 'success');
+}
+
+// ── 2FA ────────────────────────────────────────────────────────────────────────
+async function loadTFAStatus() {
+  const data = await api('GET', '/api/auth/2fa/status');
+  if (!data) return;
+  const enabled = data.enabled || data.is_enabled || false;
+  const statusEl = document.getElementById('tfa-status-text');
+  const btnContainer = document.getElementById('tfa-btn-container');
+  if (enabled) {
+    statusEl.className = 'tfa-status-enabled';
+    statusEl.textContent = '2FA is ENABLED';
+    btnContainer.innerHTML = `<button class="btn btn-sm btn-danger" onclick="disableTFA()">Disable 2FA</button>`;
+  } else {
+    statusEl.className = 'tfa-status-disabled';
+    statusEl.textContent = '2FA is DISABLED';
+    btnContainer.innerHTML = `<button class="btn btn-sm btn-success" onclick="initTFASetup()">Enable 2FA</button>`;
+  }
+}
+
+async function initTFASetup() {
+  const data = await api('POST', '/api/auth/2fa/setup');
+  if (!data) return;
+  tfaSetupData = data;
+  document.getElementById('tfa-setup-error').style.display = 'none';
+  document.getElementById('tfa-verify-code').value = '';
+  document.getElementById('tfa-secret').textContent = data.secret || '';
+
+  // Generate QR code
+  const qrContainer = document.getElementById('tfa-qr-container');
+  qrContainer.innerHTML = '';
+  const otpUrl = data.otp_url || data.provisioning_uri || '';
+  if (otpUrl && typeof QRCode !== 'undefined') {
+    QRCode.toCanvas(otpUrl, { width: 200, margin: 1 }, (err, canvas) => {
+      if (!err) qrContainer.appendChild(canvas);
+      else qrContainer.innerHTML = `<div style="font-family:monospace;font-size:11px;word-break:break-all;max-width:200px">${esc(otpUrl)}</div>`;
+    });
+  } else {
+    qrContainer.innerHTML = `<div style="font-family:monospace;font-size:11px;word-break:break-all;max-width:200px;color:var(--muted)">${esc(otpUrl || 'QR code unavailable')}</div>`;
+  }
+
+  openModal('tfa-setup-modal');
+}
+
+async function enableTFA() {
+  const code = document.getElementById('tfa-verify-code').value.trim();
+  const errEl = document.getElementById('tfa-setup-error');
+  errEl.style.display = 'none';
+  if (!code || code.length !== 6) {
+    errEl.textContent = 'Please enter the 6-digit code from your authenticator app.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('tfa-enable-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/auth/2fa/enable', { code, secret: tfaSetupData?.secret });
+  btn.disabled = false;
+  if (!result) return;
+  toast('2FA enabled successfully', 'success');
+  closeModal('tfa-setup-modal');
+  await loadTFAStatus();
+}
+
+async function disableTFA() {
+  const code = prompt('Enter your current 6-digit 2FA code to disable:');
+  if (!code) return;
+  const result = await api('POST', '/api/auth/2fa/disable', { code });
+  if (!result) return;
+  toast('2FA disabled', 'success');
+  await loadTFAStatus();
+}
+
+// ── USERS ──────────────────────────────────────────────────────────────────────
+const ALL_MODULES = [
+  { key:'dashboard',      label:'Dashboard',             icon:'📊' },
+  { key:'budgets',        label:'Budgets & Forecasting', icon:'📈' },
+  { key:'accounts',       label:'Chart of Accounts',     icon:'📒' },
+  { key:'journals',       label:'Journal Entries',        icon:'📝' },
+  { key:'reports',        label:'Financial Reports',      icon:'📋' },
+  { key:'customers',      label:'Customers & Invoicing',  icon:'👥' },
+  { key:'suppliers',      label:'Suppliers & Bills',      icon:'🏭' },
+  { key:'banking',        label:'Banking',                icon:'🏦' },
+  { key:'reconciliation', label:'Reconciliation',         icon:'✅' },
+  { key:'inventory',      label:'Inventory & POS',        icon:'📦' },
+  { key:'payroll',        label:'Payroll',                icon:'💼' },
+  { key:'assets',         label:'Fixed Assets',           icon:'🏗️' },
+  { key:'tax',            label:'Tax Periods',            icon:'🏛️' },
+  { key:'audit',          label:'Audit & Anomalies',      icon:'🔍' },
+  { key:'settings',       label:'Settings',               icon:'⚙️' },
+];
+
+let editUserId = null;
+
+function renderPermsGrid(selectedKeys) {
+  const grid = document.getElementById('user-perms-grid');
+  grid.innerHTML = ALL_MODULES.map(m => {
+    const checked = selectedKeys == null || selectedKeys.includes(m.key);
+    return `<label class="perm-item${checked?' checked':''}" onclick="togglePermItem(this)">
+      <input type="checkbox" value="${m.key}"${checked?' checked':''} onclick="event.stopPropagation();syncPermItem(this)">
+      <span class="perm-icon">${m.icon}</span>
+      <label style="cursor:pointer">${m.label}</label>
+    </label>`;
+  }).join('');
+}
+
+function togglePermItem(label) {
+  const cb = label.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  label.classList.toggle('checked', cb.checked);
+}
+function syncPermItem(cb) {
+  cb.closest('.perm-item').classList.toggle('checked', cb.checked);
+}
+
+function getSelectedPerms() {
+  return Array.from(document.querySelectorAll('#user-perms-grid input[type=checkbox]:checked'))
+    .map(cb => cb.value);
+}
+
+function setAllPerms(all) {
+  document.querySelectorAll('#user-perms-grid input[type=checkbox]').forEach(cb => {
+    cb.checked = all;
+    cb.closest('.perm-item').classList.toggle('checked', all);
+  });
+}
+
+function onRoleChange() {
+  const role = document.getElementById('user-role').value;
+  const note = document.getElementById('perms-admin-note');
+  const section = document.getElementById('user-perms-section');
+  if (role === 'admin') {
+    note.style.display = 'block';
+    document.getElementById('user-perms-grid').style.opacity = '0.4';
+    document.getElementById('user-perms-grid').style.pointerEvents = 'none';
+  } else {
+    note.style.display = 'none';
+    document.getElementById('user-perms-grid').style.opacity = '';
+    document.getElementById('user-perms-grid').style.pointerEvents = '';
+  }
+}
+
+async function loadUsers() {
+  const data = await api('GET', '/api/users');
+  if (!data) return;
+  const users = Array.isArray(data) ? data : (data.users || []);
+  const tbody = document.getElementById('users-body');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">No users</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    let perms = null;
+    try { perms = u.module_permissions ? JSON.parse(u.module_permissions) : null; } catch {}
+    const permBadge = u.role === 'admin'
+      ? '<span style="font-size:11px;color:var(--muted)">Unrestricted</span>'
+      : perms === null
+        ? '<span style="font-size:11px;color:var(--green)">All modules</span>'
+        : `<span style="font-size:11px">${perms.length} of ${ALL_MODULES.length} modules</span>`;
+    const isMe = u.id === S.user?.id;
+    return `<tr>
+      <td><strong>${esc(u.full_name||'')}</strong>${isMe?' <span style="font-size:10px;color:var(--muted)">(you)</span>':''}</td>
+      <td style="font-size:12px">${esc(u.email||'')}</td>
+      <td><span class="badge ${u.role==='admin'?'danger':u.role==='viewer'?'muted':'info'}">${esc(u.role||'')}</span></td>
+      <td>${permBadge}</td>
+      <td><span class="badge ${u.is_active!==false?'posted':'muted'}">${u.is_active!==false?'Active':'Inactive'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-xs btn-outline" onclick="openEditUserModal(${u.id})">Edit</button>
+        ${!isMe ? `<button class="btn btn-xs ${u.is_active!==false?'btn-danger':'btn-outline'}" style="margin-left:4px"
+          onclick="toggleUserActive(${u.id},${u.is_active!==false?'false':'true'})">
+          ${u.is_active!==false?'Deactivate':'Activate'}</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddUserModal() {
+  editUserId = null;
+  document.getElementById('user-modal-title').textContent = 'Add User';
+  document.getElementById('user-modal-error').style.display = 'none';
+  document.getElementById('user-save-btn').textContent = 'Create User';
+  document.getElementById('user-pw-label').textContent = 'Password *';
+  ['user-fullname','user-email','user-password'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('user-email').disabled = false;
+  document.getElementById('user-role').value = 'accountant';
+  renderPermsGrid(null); // all selected by default
+  onRoleChange();
+  openModal('add-user-modal');
+}
+
+function openEditUserModal(uid) {
+  editUserId = uid;
+  document.getElementById('user-modal-title').textContent = 'Edit User';
+  document.getElementById('user-modal-error').style.display = 'none';
+  document.getElementById('user-save-btn').textContent = 'Save Changes';
+  document.getElementById('user-pw-label').textContent = 'New Password';
+  document.getElementById('user-password').value = '';
+  // Load user data from the table row (we already have it)
+  const btn = document.querySelector(`#users-body button[onclick="openEditUserModal(${uid})"]`);
+  // Fetch fresh from API instead
+  api('GET', '/api/users').then(data => {
+    if (!data) return;
+    const users = Array.isArray(data) ? data : (data.users || []);
+    const u = users.find(x => x.id === uid);
+    if (!u) return;
+    document.getElementById('user-fullname').value = u.full_name || '';
+    document.getElementById('user-email').value = u.email || '';
+    document.getElementById('user-email').disabled = true;
+    document.getElementById('user-role').value = u.role || 'accountant';
+    let perms = null;
+    try { perms = u.module_permissions ? JSON.parse(u.module_permissions) : null; } catch {}
+    renderPermsGrid(perms);
+    onRoleChange();
+  });
+  openModal('add-user-modal');
+}
+
+async function saveUser() {
+  const errEl = document.getElementById('user-modal-error');
+  errEl.style.display = 'none';
+  const full_name = document.getElementById('user-fullname').value.trim();
+  const email     = document.getElementById('user-email').value.trim();
+  const password  = document.getElementById('user-password').value;
+  const role      = document.getElementById('user-role').value;
+  const perms     = getSelectedPerms();
+  // null = all access; if all modules are checked, send null
+  const module_permissions = perms.length === ALL_MODULES.length ? null : perms;
+
+  const btn = document.getElementById('user-save-btn');
+  btn.disabled = true;
+
+  let result;
+  if (editUserId) {
+    // Edit mode
+    const payload = { full_name, role, module_permissions };
+    if (password) payload.password = password;
+    result = await api('PUT', `/api/users/${editUserId}`, payload);
+  } else {
+    // Create mode
+    if (!full_name || !email || !password) {
+      errEl.textContent = 'Name, email, and password are required.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    result = await api('POST', '/api/users', { full_name, email, password, role, module_permissions });
+  }
+
+  btn.disabled = false;
+  if (!result) return;
+  toast(editUserId ? 'User updated' : 'User created', 'success');
+  closeModal('add-user-modal');
+  await loadUsers();
+}
+
+async function toggleUserActive(uid, makeActive) {
+  const label = makeActive ? 'activate' : 'deactivate';
+  if (!confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} this user?`)) return;
+  const result = await api('PUT', `/api/users/${uid}`, { is_active: makeActive });
+  if (!result) return;
+  toast(`User ${label}d`, 'success');
+  await loadUsers();
+}
+
+// ── COMPANIES ──────────────────────────────────────────────────────────────────
+async function loadCompanies() {
+  const data = await api('GET', '/api/companies');
+  if (!data) return;
+  allCompanies = Array.isArray(data) ? data : (data.companies || []);
+  renderCompanies();
+}
+
+function renderCompanies() {
+  const tbody = document.getElementById('companies-body');
+  if (!allCompanies.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🏢</div><div class="empty-title">No companies found</div></div></td></tr>';
+    return;
+  }
+  const currentId = S.company?.id;
+  tbody.innerHTML = allCompanies.map(c => `<tr>
+    <td>
+      <strong>${esc(c.name)}</strong>
+      ${c.id == currentId ? ' <span class="company-badge">Current</span>' : ''}
+    </td>
+    <td>${esc(c.country||'—')}</td>
+    <td>${esc(c.currency||'—')}</td>
+    <td><span class="badge ${c.is_active!==false?'posted':'muted'}">${c.is_active!==false?'Active':'Inactive'}</span></td>
+    <td>
+      ${c.id != currentId ? `<button class="btn btn-xs btn-gold" onclick="switchCompany(${c.id})">Switch</button>` : '<span class="badge info">Active</span>'}
+    </td>
+  </tr>`).join('');
+}
+
+async function switchCompany(id) {
+  if (!confirm('Switch to this company? The page will reload.')) return;
+  const result = await api('POST', '/api/auth/switch-company', { company_id: id });
+  if (!result) return;
+  if (result.company) {
+    S.company = result.company;
+    localStorage.setItem('tt_company', JSON.stringify(result.company));
+  }
+  if (result.access_token) {
+    S.token = result.access_token;
+    localStorage.setItem('tt_token', result.access_token);
+  }
+  toast('Switched company', 'success');
+  setTimeout(() => window.location.reload(), 800);
+}
+
+function openNewCompanyModal() {
+  document.getElementById('company-modal-error').style.display = 'none';
+  ['new-co-name','new-co-country','new-co-currency','new-co-symbol'].forEach(id => document.getElementById(id).value = '');
+  openModal('company-modal');
+}
+
+async function saveNewCompany() {
+  const errEl = document.getElementById('company-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('new-co-name').value.trim();
+  if (!name) { errEl.textContent = 'Company name is required.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('company-save-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/companies', {
+    name,
+    country: document.getElementById('new-co-country').value.trim() || null,
+    currency: document.getElementById('new-co-currency').value.trim() || null,
+    currency_symbol: document.getElementById('new-co-symbol').value.trim() || null,
+  });
+  btn.disabled = false;
+  if (!result) return;
+  toast('Company created', 'success');
+  closeModal('company-modal');
+  await loadCompanies();
+}
+
+// ── API KEYS ───────────────────────────────────────────────────────────────────
+async function loadApiKeys() {
+  const data = await api('GET', '/api/api-keys');
+  if (!data) return;
+  allApiKeys = Array.isArray(data) ? data : (data.keys || data.api_keys || []);
+  renderApiKeys();
+}
+
+function renderApiKeys() {
+  const tbody = document.getElementById('apikeys-body');
+  if (!allApiKeys.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔑</div><div class="empty-title">No API keys yet</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allApiKeys.map(k => `<tr>
+    <td><strong>${esc(k.name)}</strong></td>
+    <td><code style="font-size:12px">${esc(k.prefix||k.key_prefix||k.key?.substring(0,12)||'...')}...</code></td>
+    <td>${dateStr(k.created_at)}</td>
+    <td>${k.last_used_at ? dateStr(k.last_used_at) : '<span style="color:var(--muted)">Never</span>'}</td>
+    <td><button class="btn btn-xs btn-danger" onclick="revokeApiKey(${k.id}, '${esc(k.name)}')">Revoke</button></td>
+  </tr>`).join('');
+}
+
+function openGenerateKeyModal() {
+  document.getElementById('apikey-modal-error').style.display = 'none';
+  document.getElementById('apikey-name').value = '';
+  document.getElementById('apikey-create-form').style.display = 'block';
+  document.getElementById('apikey-result').style.display = 'none';
+  document.getElementById('apikey-footer').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal('apikey-modal')">Cancel</button>
+    <button class="btn btn-primary" onclick="generateApiKey()" id="apikey-gen-btn">Generate</button>
+  `;
+  openModal('apikey-modal');
+}
+
+async function generateApiKey() {
+  const errEl = document.getElementById('apikey-modal-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('apikey-name').value.trim();
+  if (!name) { errEl.textContent = 'Key name is required.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('apikey-gen-btn');
+  btn.disabled = true;
+  const result = await api('POST', '/api/api-keys', { name });
+  btn.disabled = false;
+  if (!result) return;
+
+  // Show key
+  const fullKey = result.key || result.api_key || result.token || '';
+  document.getElementById('apikey-create-form').style.display = 'none';
+  document.getElementById('apikey-result').style.display = 'block';
+  document.getElementById('apikey-value').textContent = fullKey;
+  document.getElementById('apikey-footer').innerHTML = `
+    <button class="btn btn-outline" onclick="navigator.clipboard.writeText('${fullKey}').then(()=>toast('Copied!','success'))">Copy Key</button>
+    <button class="btn btn-primary" onclick="closeModal('apikey-modal');loadApiKeys()">Done</button>
+  `;
+}
+
+async function revokeApiKey(id, name) {
+  if (!confirm(`Revoke API key "${name}"? Any applications using this key will stop working immediately.`)) return;
+  const result = await api('DELETE', `/api/api-keys/${id}`);
+  if (result === null) return;
+  toast('API key revoked', 'success');
+  await loadApiKeys();
+}
+</script>
+</body>
+</html>
