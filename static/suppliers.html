@@ -334,7 +334,7 @@ function renderPayments() {
     <td>${esc(p.bill_number||'—')}</td>
     <td>${dateStr(p.date)}</td>
     <td class="r" style="color:var(--red);font-weight:700">${fmt(p.amount||0)}</td>
-    <td><span class="badge info">${esc(p.payment_method||p.method||'')}</span></td>
+    <td><span class="badge info">${esc((p.payment_method||p.method||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</span></td>
   </tr>`).join('');
 }
 

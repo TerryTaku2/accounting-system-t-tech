@@ -366,24 +366,25 @@ async function saveAsset() {
   const cost = parseFloat(document.getElementById('asset-cost').value);
   const life = parseInt(document.getElementById('asset-life').value);
   const date = document.getElementById('asset-date').value;
-  if (!name || !cost || !life || !date) {
-    errEl.textContent = 'Name, cost, useful life, and date are required.';
+  if (!name || isNaN(cost) || cost <= 0 || isNaN(life) || life <= 0 || !date) {
+    errEl.textContent = 'Name, cost (> 0), useful life, and date are required.';
     errEl.style.display = 'block';
     return;
   }
   const method = document.getElementById('asset-method').value;
   const payload = {
     name,
-    category: document.getElementById('asset-category').value.trim() || null,
-    acquisition_date: date,
-    cost,
-    salvage_value: parseFloat(document.getElementById('asset-salvage').value) || 0,
-    useful_life: life,
+    category:            document.getElementById('asset-category').value.trim() || null,
+    purchase_date:       date,
+    purchase_cost:       cost,
+    salvage_value:       parseFloat(document.getElementById('asset-salvage').value) || 0,
+    useful_life_years:   life,
     depreciation_method: method,
-    declining_balance_rate: method === 'declining_balance' ? parseFloat(document.getElementById('asset-rate').value)||null : null,
-    gl_account_id: document.getElementById('asset-gl-account').value ? parseInt(document.getElementById('asset-gl-account').value) : null,
-    depreciation_account_id: document.getElementById('asset-depr-account').value ? parseInt(document.getElementById('asset-depr-account').value) : null,
-    description: document.getElementById('asset-description').value.trim() || null,
+    depreciation_rate:   method === 'declining_balance' ? (parseFloat(document.getElementById('asset-rate').value)||0) : 0,
+    asset_account_id:    document.getElementById('asset-gl-account').value   ? parseInt(document.getElementById('asset-gl-account').value)   : null,
+    dep_expense_account_id: document.getElementById('asset-depr-account').value ? parseInt(document.getElementById('asset-depr-account').value) : null,
+    description:         document.getElementById('asset-description').value.trim() || null,
+    payment_method:      'cash',
   };
   const btn = document.getElementById('asset-save-btn');
   btn.disabled = true;

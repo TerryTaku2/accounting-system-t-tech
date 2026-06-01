@@ -162,7 +162,9 @@ async function loadTrialBalance() {
   const data = await api('GET', url);
   if (!data) return;
 
-  const rows = data.accounts || data.rows || data || [];
+  const rows = Array.isArray(data?.accounts) ? data.accounts
+             : Array.isArray(data?.rows) ? data.rows
+             : Array.isArray(data) ? data : [];
   const totalDr = rows.reduce((s,r) => s+(r.debit||0), 0);
   const totalCr = rows.reduce((s,r) => s+(r.credit||0), 0);
   const balanced = Math.abs(totalDr - totalCr) < 0.01;
@@ -202,8 +204,8 @@ async function loadIncomeStatement() {
   const data = await api('GET', url);
   if (!data) return;
 
-  const rev = data.revenue || [];
-  const exp = data.expenses || [];
+  const rev = Array.isArray(data?.revenue)  ? data.revenue  : [];
+  const exp = Array.isArray(data?.expenses) ? data.expenses : [];
   const totalRev = data.total_revenue ?? rev.reduce((s,r)=>s+(r.amount||0),0);
   const totalExp = data.total_expenses ?? exp.reduce((s,r)=>s+(r.amount||0),0);
   const netProfit = data.net_profit ?? (totalRev - totalExp);
@@ -235,12 +237,12 @@ async function loadBalanceSheet() {
   const data = await api('GET', url);
   if (!data) return;
 
-  const assets     = data.assets || [];
-  const liabs      = data.liabilities || [];
-  const equity     = data.equity || [];
-  const totalA     = data.total_assets ?? assets.reduce((s,r)=>s+(r.amount||0),0);
-  const totalL     = data.total_liabilities ?? liabs.reduce((s,r)=>s+(r.amount||0),0);
-  const totalE     = data.total_equity ?? equity.reduce((s,r)=>s+(r.amount||0),0);
+  const assets = Array.isArray(data?.assets)       ? data.assets       : [];
+  const liabs  = Array.isArray(data?.liabilities)  ? data.liabilities  : [];
+  const equity = Array.isArray(data?.equity)        ? data.equity       : [];
+  const totalA = data.total_assets      ?? assets.reduce((s,r)=>s+(r.amount||0),0);
+  const totalL = data.total_liabilities ?? liabs.reduce((s,r)=>s+(r.amount||0),0);
+  const totalE = data.total_equity      ?? equity.reduce((s,r)=>s+(r.amount||0),0);
 
   const renderSection = (rows) => rows.map(r => `
     <div class="report-row"><span>${esc(r.name)}</span><span>${fmt(r.amount||0)}</span></div>`).join('');
@@ -283,9 +285,9 @@ async function loadCashFlow() {
   const data = await api('GET', url);
   if (!data) return;
 
-  const operating = data.operating || [];
-  const investing = data.investing || [];
-  const financing = data.financing || [];
+  const operating = Array.isArray(data?.operating) ? data.operating : [];
+  const investing = Array.isArray(data?.investing) ? data.investing : [];
+  const financing = Array.isArray(data?.financing) ? data.financing : [];
   const netOp = data.net_operating ?? operating.reduce((s,r)=>s+(r.amount||0),0);
   const netIn = data.net_investing ?? investing.reduce((s,r)=>s+(r.amount||0),0);
   const netFi = data.net_financing ?? financing.reduce((s,r)=>s+(r.amount||0),0);

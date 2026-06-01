@@ -438,7 +438,7 @@ async function saveRun() {
   }
   const btn = document.getElementById('run-save-btn');
   btn.disabled = true;
-  const result = await api('POST', '/api/payroll-runs', { period_name, start_date, end_date });
+  const result = await api('POST', '/api/payroll-runs', { period_name, period_start: start_date, period_end: end_date });
   btn.disabled = false;
   if (!result) return;
   toast('Payroll run created', 'success');

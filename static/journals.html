@@ -137,8 +137,11 @@ let viewingJournalId = null;
   renderLayout('journals', 'Journal Entries');
   initTabs('journals');
 
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('je-date').value = today;
+  const today    = new Date().toISOString().split('T')[0];
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+  document.getElementById('je-date').value    = today;
+  document.getElementById('ledger-from').value = yearStart;
+  document.getElementById('ledger-to').value   = today;
 
   await Promise.all([loadJournals(), loadAccountsForSelect()]);
 })();

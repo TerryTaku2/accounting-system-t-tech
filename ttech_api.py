@@ -2264,14 +2264,30 @@ async def create_bank_account(req: BankAccountCreate, cu: dict = Depends(current
         if req.gl_account_id and not db.execute("SELECT id FROM accounts WHERE id=? AND company_id=?",
                           (req.gl_account_id, cu["company_id"])).fetchone():
             raise HTTPException(400, "GL account not found")
+        opening = round(float(req.opening_balance or 0), 2)
+        # Store opening_balance = 0 when we post a GL entry (avoids double-counting)
+        stored_opening = 0 if (opening > 0 and req.gl_account_id) else opening
         cur = db.execute(
             "INSERT INTO bank_accounts(company_id,name,bank_name,account_number,gl_account_id,currency,"
             "opening_balance,description) VALUES(?,?,?,?,?,?,?,?)",
             (cu["company_id"], req.name, req.bank_name, req.account_number, req.gl_account_id,
-             req.currency or "USD", req.opening_balance or 0, req.description)
+             req.currency or "USD", stored_opening, req.description)
         )
+        # Post opening balance as a GL journal entry: DR Bank / CR Retained Earnings
+        if opening > 0 and req.gl_account_id:
+            equity_acc = get_acc_by_code(db, cu["company_id"], "3100") or \
+                         get_acc_by_subtype(db, cu["company_id"], "retained_earnings") or \
+                         get_acc_by_subtype(db, cu["company_id"], "owners_equity")
+            if equity_acc:
+                today = datetime.now().strftime("%Y-%m-%d")
+                auto_post_gl(db, cu["company_id"], cu["id"], today,
+                             f"Opening balance — {req.name}",
+                             [(req.gl_account_id, opening, 0, f"Opening balance: {req.name}"),
+                              (equity_acc["id"], 0, opening, f"Opening balance equity: {req.name}")])
         db.commit()
         return dict(db.execute("SELECT * FROM bank_accounts WHERE id=?", (cur.lastrowid,)).fetchone())
+    except HTTPException: db.rollback(); raise
+    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
     finally: db.close()
 
 @app.put("/api/bank-accounts/{bid}")
